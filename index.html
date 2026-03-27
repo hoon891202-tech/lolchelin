@@ -1806,7 +1806,7 @@ async function njLoadApplyStatus(){
       <div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">
         <span class="tb t${u.tier}" style="font-size:10px;">${TIER_NAMES[u.tier]||u.tier}</span>
         <span style="flex:1;">${u.realname||u.nick} <span style="color:var(--text-dim);font-size:11px;">(${u.nick})</span></span>
-        <span style="font-size:11px;color:var(--text-dim);">${u.main||''}</span>
+        <span style="font-size:11px;color:var(--text-dim);">${u.main||''}${u.sub&&u.sub!=='all'?' / '+u.sub:u.sub==='all'?' / 무관':''}</span>
       </div>`).join('') || '<div style="font-size:12px;color:var(--text-dim);padding:4px 0;">신청자 없음</div>';
     document.getElementById('nj1-list').innerHTML = renderList(list1);
     document.getElementById('nj2-list').innerHTML = renderList(list2);
