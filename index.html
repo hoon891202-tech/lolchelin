@@ -244,7 +244,6 @@ select.inp option{background:#1e1e1e;}
     <span class="nav-logo-text">LOLCHELIN</span>
   </div>
   <div class="nav-tab active" onclick="showPage('home',this)">🏠 홈</div>
-  <div class="nav-tab" onclick="showPage('record',this)">📝 기록</div>
   <div class="nav-tab" onclick="showPage('stats',this)">📊 통계</div>
   <div class="nav-tab" onclick="showPage('naejeon',this)">⚔️ 내전</div>
   <div class="nav-tab" onclick="showPage('jarparty',this)">🎮 자랭파티</div>
@@ -292,41 +291,6 @@ select.inp option{background:#1e1e1e;}
 </div>
 
 <!-- ══ 기록 ══ -->
-<div id="page-record" class="page">
-<div class="wrap">
-  <div class="card">
-    <div class="card-header"><span class="card-icon">📝</span><span class="card-title">게임 기록</span><span class="card-note" id="record-user-name"></span></div>
-    <!-- 자랭 -->
-    <div id="rec-jarang" class="rec-content active">
-      <div class="score-form">
-        <div class="form-row">
-          <span class="form-label">날짜</span>
-          <input id="jar-date" type="date" class="inp form-inp">
-        </div>
-        <div class="form-row">
-          <span class="form-label">판수</span>
-          <select id="jar-games" class="inp" style="width:100px;">
-            <option value="1">1판 (0.5점)</option>
-            <option value="2">2판 (1.0점)</option>
-            <option value="3">3판 (1.5점)</option>
-            <option value="4">4판 (2.0점)</option>
-            <option value="5" selected>5판 (2.5점)</option>
-          </select>
-          <span style="font-size:12px;color:var(--text-dim);">5명이서 함께한 판수</span>
-        </div>
-        <button class="btn btn-red" onclick="addJarang()">기록 추가</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 내 기록 로그 -->
-  <div class="card">
-    <div class="card-header"><span class="card-icon">📋</span><span class="card-title">내 기록 내역</span><span class="card-note" id="my-total-pts"></span></div>
-    <div id="my-log" style="padding:8px 16px 12px;"><div class="loading">불러오는 중...</div></div>
-  </div>
-</div>
-</div>
-
 <!-- ══ 통계 ══ -->
 <div id="page-stats" class="page">
 <div class="wrap">
@@ -875,10 +839,7 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById('nav-admin-badge').style.display = 'inline';
         document.getElementById('admin-tab').style.display = 'block';
       }
-      document.getElementById('record-user-name').textContent = currentProfile.realname ? `${currentProfile.realname} (${currentProfile.nick})` : currentProfile.nick;
-      initDates();
       loadRanking();
-      loadMyLog();
       initStatsMonths();
       prefillMyPage();
     }
@@ -927,20 +888,6 @@ function getSubValue(selId, inputId){
 }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
 
-function initDates(){
-  const today = todayStr();
-  const now = new Date();
-  // 이번 달 1일부터 오늘까지 입력 가능
-  const minDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-  ['jar-date'].forEach(id=>{
-    const el = document.getElementById(id);
-    if(!el) return;
-    el.value = today;
-    el.min = minDate;
-    el.max = today;
-  });
-}
-
 // ── RANKING ──
 async function loadRanking(){
   const now = new Date();
@@ -976,59 +923,6 @@ async function loadRanking(){
     }).join('');
   } catch(e){ console.error(e); }
 }
-
-// ── RECORD ──
-window.switchRecTab = (id, el) => {
-  document.querySelectorAll('.rec-tab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.rec-content').forEach(c=>c.classList.remove('active'));
-  el.classList.add('active');
-  document.getElementById('rec-'+id).classList.add('active');
-};
-
-window.addJarang = async () => {
-  if(!currentUser) return;
-  const date = document.getElementById('jar-date').value;
-  const games = parseInt(document.getElementById('jar-games').value);
-  const pts = games * 0.5;
-  const month = date.slice(0,7);
-  try {
-    await addDoc(collection(db,'records'),{
-      uid: currentUser.uid, nick: currentProfile.nick,
-      type:'jarang', date, games, pts, month,
-      createdAt: new Date().toISOString()
-    });
-    showToast(`자랭 ${games}판 기록! +${pts}점`);
-    loadMyLog(); loadRanking();
-  } catch(e){ showToast('오류: '+e.message); }
-};
-
-
-async function loadMyLog(){
-  if(!currentUser) return;
-  const snap = await getDocs(query(collection(db,'records'), where('uid','==',currentUser.uid), orderBy('date','desc')));
-  let total = 0;
-  const items = [];
-  snap.forEach(d=>{ const r=d.data(); total+=r.pts||0; items.push({id:d.id,...r}); });
-  document.getElementById('my-total-pts').textContent = `총 ${total}pt`;
-  const el = document.getElementById('my-log');
-  if(!items.length){ el.innerHTML='<div class="empty-hint">기록이 없습니다</div>'; return; }
-  el.innerHTML = '<div class="game-log">'+items.map(r=>`
-    <div class="log-item">
-      <span class="log-date">${r.date}</span>
-      <span class="log-type" style="${r.type==='jarang'?'background:#1a2a3a;color:#5090d0;':r.type==='naejeon'?'background:#2a1a2a;color:#c080ff;':r.type==='penalty'?'background:#3a1010;color:#ff7070;':r.type==='adjust'?'background:#2a1e04;color:#C89B3C;':'background:#1a3020;color:#40c070;'}">${r.type==='jarang'?'자랭':r.type==='naejeon'?'내전':r.type==='penalty'?(r.penaltyType==='late'?'⚠️지각':'🚫노쇼'):r.type==='adjust'?'조정':'기타'}</span>
-      <span class="log-detail">${r.type==='jarang'?r.games+'판':r.type==='naejeon'?(r.result==='win'?'승리':'패배'):r.type==='penalty'?(r.penaltyType==='late'?'지각 차감':'노쇼 차감'):''}</span>
-      <span class="log-pts">+${r.pts}pt</span>
-      <button class="log-del" onclick="delRecord('${r.id}')">삭제</button>
-    </div>
-  `).join('')+'</div>';
-}
-
-window.delRecord = async (id) => {
-  if(!confirm('이 기록을 삭제하시겠습니까?')) return;
-  await deleteDoc(doc(db,'records',id));
-  showToast('삭제됐습니다');
-  loadMyLog(); loadRanking();
-};
 
 // ── STATS ──
 function initStatsMonths(){
@@ -1240,7 +1134,6 @@ window.saveMyProfile = async () => {
   currentProfile = {...currentProfile, nick, realname, birthyear, tier, main, sub};
   const dn = realname ? `${realname} (${nick})` : nick;
   document.getElementById('nav-nick').textContent = dn;
-  document.getElementById('record-user-name').textContent = dn;
   showToast('프로필이 저장됐습니다 ✅');
 };
 
