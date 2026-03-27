@@ -892,13 +892,13 @@ window.showPage = (id, el) => {
 function ym(date){ return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0'); }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function restEndStr(restFrom){ if(!restFrom) return ''; const [y,m]=restFrom.split('-').map(Number); return `${y}년 ${m}월 ${new Date(y,m,0).getDate()}일`; }
-function toggleSubOther(selId, inputId){
+window.toggleSubOther = function(selId, inputId){
   const sel = document.getElementById(selId);
   const inp = document.getElementById(inputId);
   if(!sel||!inp) return;
   inp.style.display = sel.value==='other' ? 'block' : 'none';
   if(sel.value!=='other') inp.value='';
-}
+};
 function getSubValue(selId, inputId){
   const sel = document.getElementById(selId);
   if(!sel) return '';
