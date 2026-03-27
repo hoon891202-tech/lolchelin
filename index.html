@@ -1828,7 +1828,7 @@ window.njToggleApply = async (game) => {
   const newVal = !my[field];
   await setDoc(doc(db,'naejeonApply',currentUser.uid),{
     uid:currentUser.uid, nick:currentProfile.nick, realname:currentProfile.realname||'',
-    tier:currentProfile.tier, main:currentProfile.main||'',
+    tier:currentProfile.tier, main:currentProfile.main||'', sub:currentProfile.sub||'',
     [field]:newVal, updatedAt:new Date().toISOString()
   },{merge:true});
   showToast(newVal?`내전${game} 신청 완료!`:`내전${game} 신청 취소`);
