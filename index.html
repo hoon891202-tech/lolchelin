@@ -223,12 +223,14 @@ select.inp option{background:#1e1e1e;}
         <option>탑</option><option>정글</option><option>미드</option>
         <option>원딜</option><option>서폿</option>
       </select>
-      <select id="signup-sub" class="auth-field inp">
+      <select id="signup-sub" class="auth-field inp" onchange="toggleSubOther('signup-sub','signup-sub-other')">
         <option value="">부 라인 선택</option>
         <option>탑</option><option>정글</option><option>미드</option>
         <option>원딜</option><option>서폿</option>
         <option value="all">다른 라인 상관없음</option>
+        <option value="other">기타 (직접입력)</option>
       </select>
+      <input id="signup-sub-other" class="auth-field inp" placeholder="부 라인 직접 입력 (예: 탑/미드)" style="display:none;">
       <button class="auth-btn" onclick="doSignup()">가입하기</button>
     </div>
     <div id="auth-err" class="auth-err"></div>
@@ -617,10 +619,12 @@ select.inp option{background:#1e1e1e;}
         </div>
         <div style="flex:1;min-width:140px;">
           <div style="font-size:11px;color:var(--text-dim);margin-bottom:5px;letter-spacing:1px;">부 라인</div>
-          <select id="my-sub" class="inp" style="width:100%;">
+          <select id="my-sub" class="inp" style="width:100%;" onchange="toggleSubOther('my-sub','my-sub-other')">
             <option>탑</option><option>정글</option><option>미드</option><option>원딜</option><option>서폿</option>
             <option value="all">다른 라인 상관없음</option>
+            <option value="other">기타 (직접입력)</option>
           </select>
+          <input id="my-sub-other" class="inp" placeholder="부 라인 직접 입력 (예: 탑/미드)" style="width:100%;display:none;margin-top:4px;">
         </div>
       </div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;">
@@ -842,7 +846,7 @@ window.doSignup = async () => {
   const pw = document.getElementById('signup-pw').value;
   const tier = document.getElementById('signup-tier').value;
   const main = document.getElementById('signup-main').value;
-  const sub = document.getElementById('signup-sub').value;
+  const sub = getSubValue('signup-sub','signup-sub-other');
   if(!nick||!realname||!birthyear||!email||!pw||!tier||!main||!sub){ document.getElementById('auth-err').textContent='모든 항목을 입력해주세요'; return; }
   try {
     const cred = await createUserWithEmailAndPassword(auth, email, pw);
@@ -911,6 +915,22 @@ window.showPage = (id, el) => {
 function ym(date){ return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0'); }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function restEndStr(restFrom){ if(!restFrom) return ''; const [y,m]=restFrom.split('-').map(Number); return `${y}년 ${m}월 ${new Date(y,m,0).getDate()}일`; }
+function toggleSubOther(selId, inputId){
+  const sel = document.getElementById(selId);
+  const inp = document.getElementById(inputId);
+  if(!sel||!inp) return;
+  inp.style.display = sel.value==='other' ? 'block' : 'none';
+  if(sel.value!=='other') inp.value='';
+}
+function getSubValue(selId, inputId){
+  const sel = document.getElementById(selId);
+  if(!sel) return '';
+  if(sel.value==='other'){
+    const inp = document.getElementById(inputId);
+    return inp ? inp.value.trim() : '';
+  }
+  return sel.value;
+}
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
 
 function initDates(){
@@ -1132,7 +1152,17 @@ function prefillMyPage(){
   document.getElementById('my-birthyear').value = currentProfile.birthyear || '';
   document.getElementById('my-tier').value = currentProfile.tier || 'G';
   document.getElementById('my-main').value = currentProfile.main || '미드';
-  document.getElementById('my-sub').value = currentProfile.sub || '미드';
+  const knownSubs = ['탑','정글','미드','원딜','서폿','all'];
+  const profileSub = currentProfile.sub || '미드';
+  const subSel = document.getElementById('my-sub');
+  if(knownSubs.includes(profileSub)){
+    subSel.value = profileSub;
+    document.getElementById('my-sub-other').style.display='none';
+  } else {
+    subSel.value = 'other';
+    document.getElementById('my-sub-other').style.display='block';
+    document.getElementById('my-sub-other').value = profileSub;
+  }
   document.getElementById('my-email').value = currentUser.email || '';
 }
 
@@ -1224,7 +1254,7 @@ window.saveMyProfile = async () => {
   const birthyear = document.getElementById('my-birthyear').value.trim();
   const tier = document.getElementById('my-tier').value;
   const main = document.getElementById('my-main').value;
-  const sub = document.getElementById('my-sub').value;
+  const sub = getSubValue('my-sub','my-sub-other');
   if(!nick||!realname||!birthyear){ showToast('닉네임, 이름, 년생을 모두 입력해주세요'); return; }
   await updateDoc(doc(db,'users',currentUser.uid),{ nick, realname, birthyear, tier, main, sub });
   currentProfile = {...currentProfile, nick, realname, birthyear, tier, main, sub};
@@ -1967,7 +1997,7 @@ function njCard(p, game){
     onmouseover="this.style.borderColor='#8a3030'" onmouseout="this.style.borderColor='var(--border)'">
     <span class="tb t${p.tier}" style="font-size:10px;">${TIER_NAMES[p.tier]||p.tier}</span>
     <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.realname||p.nick}</span>
-    <span style="font-size:10px;color:var(--text-dim);">${p.main||''}</span>
+    <span style="font-size:10px;color:var(--text-dim);">${p.main||''}${p.sub&&p.sub!=='all'?' / '+p.sub:p.sub==='all'?' / 무관':''}</span>
   </div>`;
 }
 
@@ -2039,14 +2069,15 @@ window.njRecordResult = async (game, winner) => {
   const winnerName = winner==='t1'?tNames[0]:tNames[1];
   if(!confirm(`내전${game} — ${winnerName} 승리로 기록하시겠습니까?\n선수 전원 승/패가 자동 기록됩니다.`)) return;
   const date = todayStr(), month = ym(new Date()), now = new Date().toISOString();
-  await addDoc(collection(db,'naejeonSessions'),{
+  const sessionRef = await addDoc(collection(db,'naejeonSessions'),{
     game, date, createdAt:now, winner,
     team1: t1.map(p=>({uid:p.uid,nick:p.nick,realname:p.realname,tier:p.tier,pos:p.loc.replace('t1-','')})),
     team2: t2.map(p=>({uid:p.uid,nick:p.nick,realname:p.realname,tier:p.tier,pos:p.loc.replace('t2-','')}))
   });
+  const sid = sessionRef.id;
   const winList = winner==='t1'?t1:t2, loseList = winner==='t1'?t2:t1;
-  for(const p of winList) await addDoc(collection(db,'records'),{uid:p.uid,nick:p.nick,type:'naejeon',date,result:'win',pts:1,month,createdAt:now,addedByAdmin:true,naejeonGame:game});
-  for(const p of loseList) await addDoc(collection(db,'records'),{uid:p.uid,nick:p.nick,type:'naejeon',date,result:'loss',pts:1,month,createdAt:now,addedByAdmin:true,naejeonGame:game});
+  for(const p of winList) await addDoc(collection(db,'records'),{uid:p.uid,nick:p.nick,type:'naejeon',date,result:'win',pts:1,month,createdAt:now,addedByAdmin:true,naejeonGame:game,naejeonSessionId:sid});
+  for(const p of loseList) await addDoc(collection(db,'records'),{uid:p.uid,nick:p.nick,type:'naejeon',date,result:'loss',pts:1,month,createdAt:now,addedByAdmin:true,naejeonGame:game,naejeonSessionId:sid});
   showToast(`내전${game} 결과 기록 완료! 🎉`);
   njPlayers[game] = [];
   renderNjPlayers(game);
@@ -2055,34 +2086,84 @@ window.njRecordResult = async (game, winner) => {
   loadRanking();
 };
 
+let njHistoryDocs = [];
+let njHistoryPage = 1;
+const NJ_HISTORY_PER_PAGE = 10;
+
 async function loadNjHistory(){
   const el = document.getElementById('nj-history');
   if(!el) return;
   try {
     const snap = await getDocs(query(collection(db,'naejeonSessions'),orderBy('date','desc')));
-    if(snap.empty){ el.innerHTML='<div class="empty-hint">기록이 없습니다</div>'; return; }
-    const tMap = {1:['1팀','2팀'],2:['3팀','4팀']};
-    el.innerHTML = snap.docs.map(d=>{
-      const s=d.data();
-      const tn=tMap[s.game]||['1팀','2팀'];
-      const wName=s.winner==='t1'?tn[0]:tn[1];
-      const wColor=s.winner==='t1'?'#ff5555':'#5090d0';
-      const rTeam=(team,tk)=>team.map(p=>`<span style="font-size:11px;padding:2px 5px;background:var(--bg3);border-radius:4px;border:1px solid var(--border);white-space:nowrap;">
-        <span style="font-size:10px;color:var(--text-dim);">${p.pos}</span> ${p.realname||p.nick}</span>`).join('');
-      return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
-          <span style="font-size:11px;color:var(--text-dim);">${s.date}</span>
-          <span style="font-size:12px;font-weight:700;">내전${s.game}</span>
-          <span style="font-size:11px;background:${wColor}20;color:${wColor};border:1px solid ${wColor}44;padding:2px 8px;border-radius:10px;">🏆 ${wName} 승</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <div><div style="font-size:10px;color:#ff5555;margin-bottom:4px;font-weight:700;">🔴 ${tn[0]}${s.winner==='t1'?' 🏆':''}</div><div style="display:flex;flex-wrap:wrap;gap:3px;">${rTeam(s.team1,'t1')}</div></div>
-          <div><div style="font-size:10px;color:#5090d0;margin-bottom:4px;font-weight:700;">🔵 ${tn[1]}${s.winner==='t2'?' 🏆':''}</div><div style="display:flex;flex-wrap:wrap;gap:3px;">${rTeam(s.team2,'t2')}</div></div>
-        </div>
-      </div>`;
-    }).join('');
+    njHistoryDocs = snap.docs;
+    njHistoryPage = 1;
+    renderNjHistory();
   } catch(e){ el.innerHTML='<div class="empty-hint">기록 불러오기 실패: '+e.message+'</div>'; }
 }
+
+function renderNjHistory(){
+  const el = document.getElementById('nj-history');
+  if(!el) return;
+  if(!njHistoryDocs.length){ el.innerHTML='<div class="empty-hint">기록이 없습니다</div>'; return; }
+  const totalPages = Math.ceil(njHistoryDocs.length / NJ_HISTORY_PER_PAGE);
+  const start = (njHistoryPage-1)*NJ_HISTORY_PER_PAGE;
+  const pageDocs = njHistoryDocs.slice(start, start+NJ_HISTORY_PER_PAGE);
+  const tMap = {1:['1팀','2팀'],2:['3팀','4팀']};
+  const rTeam=(team)=>team.map(p=>`<span style="font-size:11px;padding:2px 5px;background:var(--bg3);border-radius:4px;border:1px solid var(--border);white-space:nowrap;">
+    <span style="font-size:10px;color:var(--text-dim);">${p.pos}</span> ${p.realname||p.nick}</span>`).join('');
+  const cards = pageDocs.map(d=>{
+    const s=d.data(); const sid=d.id;
+    const tn=tMap[s.game]||['1팀','2팀'];
+    const wName=s.winner==='t1'?tn[0]:tn[1];
+    const wColor=s.winner==='t1'?'#ff5555':'#5090d0';
+    const delBtn = isAdmin ? `<button onclick="njDeleteSession('${sid}')" style="margin-left:auto;font-size:11px;padding:2px 8px;background:#3a1010;border:1px solid #6a2020;color:#ff6666;border-radius:4px;cursor:pointer;">🗑 삭제</button>` : '';
+    return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+        <span style="font-size:11px;color:var(--text-dim);">${s.date}</span>
+        <span style="font-size:12px;font-weight:700;">내전${s.game}</span>
+        <span style="font-size:11px;background:${wColor}20;color:${wColor};border:1px solid ${wColor}44;padding:2px 8px;border-radius:10px;">🏆 ${wName} 승</span>
+        ${delBtn}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div><div style="font-size:10px;color:#ff5555;margin-bottom:4px;font-weight:700;">🔴 ${tn[0]}${s.winner==='t1'?' 🏆':''}</div><div style="display:flex;flex-wrap:wrap;gap:3px;">${rTeam(s.team1)}</div></div>
+        <div><div style="font-size:10px;color:#5090d0;margin-bottom:4px;font-weight:700;">🔵 ${tn[1]}${s.winner==='t2'?' 🏆':''}</div><div style="display:flex;flex-wrap:wrap;gap:3px;">${rTeam(s.team2)}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+  // 페이지네이션
+  let pagination = '';
+  if(totalPages > 1){
+    const btns = [];
+    for(let i=1;i<=totalPages;i++){
+      const active = i===njHistoryPage;
+      btns.push(`<button onclick="njHistoryGoPage(${i})" style="min-width:32px;padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:${active?'var(--red)':'var(--bg4)'};color:${active?'#fff':'var(--text)'};font-size:12px;cursor:pointer;">${i}</button>`);
+    }
+    pagination = `<div style="display:flex;gap:4px;justify-content:center;margin-top:8px;">${btns.join('')}</div>`;
+  }
+  el.innerHTML = cards + pagination;
+}
+
+window.njHistoryGoPage = function(page){
+  njHistoryPage = page;
+  renderNjHistory();
+};
+
+window.njDeleteSession = async function(sid){
+  if(!confirm('이 내전 기록을 삭제하시겠습니까?\n관련 승/패 기록도 함께 삭제됩니다.')) return;
+  try {
+    const sessionDoc = njHistoryDocs.find(d=>d.id===sid);
+    if(sessionDoc){
+      const s = sessionDoc.data();
+      const allUids = [...(s.team1||[]),...(s.team2||[])].map(p=>p.uid).filter(Boolean);
+      // records 컬렉션에서 해당 세션의 기록 삭제 (naejeonSessionId 필드 기준)
+      const recSnap = await getDocs(query(collection(db,'records'),where('naejeonSessionId','==',sid)));
+      for(const rd of recSnap.docs) await deleteDoc(doc(db,'records',rd.id));
+    }
+    await deleteDoc(doc(db,'naejeonSessions',sid));
+    showToast('삭제 완료');
+    await loadNjHistory();
+  } catch(e){ showToast('삭제 실패: '+e.message); }
+};
 
 // ── APPLY ──
 async function loadApplyPage(){
