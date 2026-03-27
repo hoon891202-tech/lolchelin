@@ -704,6 +704,18 @@ select.inp option{background:#1e1e1e;}
   </div>
 </div>
 
+<!-- 기록관리 모달 -->
+<div id="rec-manage-modal" class="modal-overlay" style="display:none;">
+  <div class="modal" style="max-width:480px;width:95%;">
+    <h3>📋 기록 관리</h3>
+    <div style="font-size:13px;color:var(--text-dim);margin-bottom:10px;" id="rec-manage-name"></div>
+    <div id="rec-manage-list" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeRecManageModal()">닫기</button>
+    </div>
+  </div>
+</div>
+
 <!-- 경고 사유 모달 -->
 <div id="warn-modal" class="modal-overlay" style="display:none;">
   <div class="modal">
@@ -1311,6 +1323,7 @@ async function loadAdmin(){
           <button class="adm-btn warn" onclick="openWarnModal('${d.id}','${u.realname||u.nick}',${w})">경고+</button>
           <button class="adm-btn" onclick="adminUnwarn('${d.id}',${w})">경고-</button>
           <button class="adm-btn" onclick="openPtsModal('${d.id}','${u.nick}',${pts})">점수수정</button>
+          <button class="adm-btn" style="border-color:#3a5a7a;color:#88aacc;" onclick="openRecManageModal('${d.id}','${u.realname||u.nick}')">기록관리</button>
           <button class="adm-btn" style="border-color:#7a6a22;color:var(--gold-light);" onclick="adminAddExemption('${d.id}','${u.nick}')">면제권+</button>
           <button class="adm-btn" style="border-color:#5a5020;color:#aaa860;" onclick="adminRemoveExemption('${d.id}','${u.nick}',${exCount})">면제권-</button>
           <button class="adm-btn" style="border-color:#4a4a7a;color:#8888cc;" onclick="toggleRest('${d.id}','${u.nick}',${!!isResting})">
@@ -1545,24 +1558,76 @@ window.toggleShowInactive = () => {
   loadAdmin();
 };
 
-let ptsModalUid = null, ptsModalMonth = null;
+let ptsModalUid = null, ptsModalMonth = null, ptsModalCur = 0;
 window.openPtsModal = (uid, nick, pts) => {
   ptsModalUid = uid;
   ptsModalMonth = ym(new Date());
-  document.getElementById('pts-modal-name').textContent = nick + ' — ' + (new Date().getMonth()+1) + '월';
+  ptsModalCur = pts;
+  document.getElementById('pts-modal-name').textContent = nick + ' — ' + (new Date().getMonth()+1) + '월 (현재 ' + pts + 'pt)';
   document.getElementById('pts-modal-val').value = pts;
   document.getElementById('pts-modal').style.display = 'flex';
 };
 window.closePtsModal = () => { document.getElementById('pts-modal').style.display='none'; };
+
+let recManageUid = null, recManageNick = null;
+window.openRecManageModal = async (uid, nick) => {
+  recManageUid = uid; recManageNick = nick;
+  document.getElementById('rec-manage-name').textContent = nick;
+  document.getElementById('rec-manage-modal').style.display = 'flex';
+  await renderRecManageList();
+};
+window.closeRecManageModal = () => { document.getElementById('rec-manage-modal').style.display='none'; };
+
+async function renderRecManageList(){
+  const el = document.getElementById('rec-manage-list');
+  el.innerHTML = '<div class="loading">불러오는 중...</div>';
+  const snap = await getDocs(query(collection(db,'records'), where('uid','==',recManageUid), orderBy('date','desc')));
+  if(!snap.docs.length){ el.innerHTML='<div class="empty-hint">기록이 없습니다</div>'; return; }
+  el.innerHTML = snap.docs.map(d=>{
+    const r = d.data();
+    const typeLabel = r.type==='jarang'?'자랭':r.type==='naejeon'?'내전':r.type==='penalty'?'패널티':r.type==='adjust'?'조정':'기타';
+    const typeColor = r.type==='jarang'?'#5090d0':r.type==='naejeon'?'#c080ff':r.type==='penalty'?'#ff7070':r.type==='adjust'?'#C89B3C':'#40c070';
+    const detail = r.type==='jarang'?` ${r.games}판`:r.type==='naejeon'?(r.result==='win'?' 승':' 패'):'';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;font-size:12px;">
+      <span style="color:var(--text-dim);flex-shrink:0;">${r.date}</span>
+      <span style="padding:1px 6px;border-radius:4px;background:${typeColor}20;color:${typeColor};border:1px solid ${typeColor}44;flex-shrink:0;">${typeLabel}${detail}</span>
+      <span style="flex:1;color:var(--text-dim);font-size:11px;">${r.note||''}</span>
+      <span style="color:var(--gold);font-weight:700;flex-shrink:0;">${r.pts>=0?'+':''}${r.pts}pt</span>
+      <button onclick="adminDelRecord('${d.id}')" style="padding:2px 8px;background:#3a1010;border:1px solid #6a2020;color:#ff6666;border-radius:4px;cursor:pointer;font-size:11px;flex-shrink:0;">🗑</button>
+    </div>`;
+  }).join('');
+}
+
+window.adminDelRecord = async (rid) => {
+  if(!confirm('이 기록을 삭제하시겠습니까?')) return;
+  const recSnap = await getDoc(doc(db,'records',rid));
+  if(recSnap.exists()){
+    const r = recSnap.data();
+    // 자랭파티 세션에서 해당 멤버 제거
+    if(r.jarPartySessionId){
+      const sessionRef = doc(db,'jarPartySessions',r.jarPartySessionId);
+      const sessionSnap = await getDoc(sessionRef);
+      if(sessionSnap.exists()){
+        const members = (sessionSnap.data().members||[]).filter(m=>m.uid!==r.uid);
+        await updateDoc(sessionRef,{members});
+      }
+    }
+  }
+  await deleteDoc(doc(db,'records',rid));
+  showToast('삭제됐습니다');
+  await renderRecManageList();
+  loadAdmin(); loadRanking();
+};
 window.savePtsModal = async () => {
   const val = parseFloat(document.getElementById('pts-modal-val').value)||0;
-  // add adjustment record
+  const diff = Math.round((val - ptsModalCur) * 10) / 10;
+  if(diff === 0){ closePtsModal(); return; }
   await addDoc(collection(db,'records'),{
     uid: ptsModalUid, nick:'(관리자수정)',
-    type:'adjust', pts:val, month:ptsModalMonth,
+    type:'adjust', pts:diff, month:ptsModalMonth,
     date: todayStr(), createdAt: new Date().toISOString()
   });
-  closePtsModal(); showToast('점수가 수정됐습니다'); loadAdmin(); loadRanking();
+  closePtsModal(); showToast(`점수 수정 완료 (${diff>0?'+':''}${diff}pt)`); loadAdmin(); loadRanking();
 };
 
 // ── 운영 규정 ──
