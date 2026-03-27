@@ -1682,19 +1682,20 @@ async function loadApplyPage(){
 
 async function loadApplicantList(){
   try {
-  const snap = await getDocs(query(collection(db,'applicants'), where('applied','==',true)));
-  const uids = [];
-  snap.forEach(d=> uids.push(d.data()));
-  document.getElementById('apply-count').textContent = uids.length+'명';
-  const el = document.getElementById('apply-list');
-  if(!uids.length){ el.innerHTML='<div class="empty-hint">신청자가 없습니다</div>'; return; }
-  el.innerHTML = uids.map((u,i)=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;margin-bottom:6px;">
-      <span style="font-size:12px;color:var(--text-dim);width:20px;">${i+1}</span>
-      <span style="flex:1;font-size:13px;font-weight:500;">${u.realname||u.nick} ${u.birthyear?u.birthyear+'년생 ':''}<span style="color:var(--text-mid);font-size:11px;">(${u.nick})</span></span>
-      <span class="tb t${u.tier}">${TIER_NAMES[u.tier]||u.tier}</span>
-      <span style="font-size:11px;color:var(--text-dim);">${u.main||''} / ${u.sub==='all'?'상관없음':u.sub||''}</span>
-    </div>`).join('');
+    const snap = await getDocs(query(collection(db,'applicants'), where('applied','==',true)));
+    const uids = [];
+    snap.forEach(d=> uids.push(d.data()));
+    document.getElementById('apply-count').textContent = uids.length+'명';
+    const el = document.getElementById('apply-list');
+    if(!uids.length){ el.innerHTML='<div class="empty-hint">신청자가 없습니다</div>'; return; }
+    el.innerHTML = uids.map((u,i)=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;margin-bottom:6px;">
+        <span style="font-size:12px;color:var(--text-dim);width:20px;">${i+1}</span>
+        <span style="flex:1;font-size:13px;font-weight:500;">${u.realname||u.nick} ${u.birthyear?u.birthyear+'년생 ':''}<span style="color:var(--text-mid);font-size:11px;">(${u.nick})</span></span>
+        <span class="tb t${u.tier}">${TIER_NAMES[u.tier]||u.tier}</span>
+        <span style="font-size:11px;color:var(--text-dim);">${u.main||''} / ${u.sub==='all'?'상관없음':u.sub||''}</span>
+      </div>`).join('');
+  } catch(e){ console.error('loadApplicantList error:', e); }
 }
 
 window.toggleApply = async () => {
