@@ -244,6 +244,7 @@ select.inp option{background:#1e1e1e;}
   <div class="nav-tab active" onclick="showPage('home',this)">🏠 홈</div>
   <div class="nav-tab" onclick="showPage('record',this)">📝 기록</div>
   <div class="nav-tab" onclick="showPage('stats',this)">📊 통계</div>
+  <div class="nav-tab" onclick="showPage('naejeon',this)">⚔️ 내전</div>
   <div class="nav-tab" onclick="showPage('regs',this)">📜 운영 규정</div>
   <div class="nav-tab" onclick="showPage('rule',this)">📋 드래프트 룰북</div>
   <div class="nav-tab" onclick="showPage('apply',this)">✋ 드래프트 신청</div>
@@ -355,6 +356,42 @@ select.inp option{background:#1e1e1e;}
       </select>
     </div>
     <div id="stats-table" style="overflow-x:auto;"><div class="loading">불러오는 중...</div></div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 내전 ══ -->
+<div id="page-naejeon" class="page">
+<div class="wrap">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+    <div class="card">
+      <div class="card-header"><span class="card-icon">⚔️</span><span class="card-title">내전 1</span><span id="nj1-cnt" class="card-note">0명</span></div>
+      <div style="padding:12px;display:flex;flex-direction:column;gap:8px;">
+        <button id="nj1-btn" class="btn btn-red btn-sm" onclick="njToggleApply(1)">신청하기</button>
+        <div id="nj1-list"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-icon">⚔️</span><span class="card-title">내전 2</span><span id="nj2-cnt" class="card-note">0명</span></div>
+      <div style="padding:12px;display:flex;flex-direction:column;gap:8px;">
+        <button id="nj2-btn" class="btn btn-red btn-sm" onclick="njToggleApply(2)">신청하기</button>
+        <div id="nj2-list"></div>
+      </div>
+    </div>
+  </div>
+  <div id="nj-admin-section" style="display:none;">
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-header"><span class="card-icon">🔴</span><span class="card-title">내전1 팀구성 — 1팀 vs 2팀</span></div>
+      <div id="nj1-team-builder" style="padding:12px;"></div>
+    </div>
+    <div class="card" style="margin-bottom:14px;">
+      <div class="card-header"><span class="card-icon">🔵</span><span class="card-title">내전2 팀구성 — 3팀 vs 4팀</span></div>
+      <div id="nj2-team-builder" style="padding:12px;"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><span class="card-icon">📋</span><span class="card-title">내전 기록</span><span class="card-note">날짜별</span></div>
+    <div id="nj-history" style="padding:12px;"><div class="loading">불러오는 중...</div></div>
   </div>
 </div>
 </div>
@@ -684,7 +721,7 @@ select.inp option{background:#1e1e1e;}
     </div>
   </div>
   <div class="card">
-    <div class="card-header"><span class="card-icon">⚙️</span><span class="card-title">회원 관리</span><span class="card-note">관리자 전용</span></div>
+    <div class="card-header"><span class="card-icon">⚙️</span><span class="card-title">회원 관리</span><span class="card-note">관리자 전용</span><button id="show-inactive-btn" class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="toggleShowInactive()">탈퇴 회원 보기</button></div>
     <div id="admin-list" style="padding:14px;"><div class="loading">불러오는 중...</div></div>
   </div>
 </div>
@@ -866,6 +903,7 @@ window.showPage = (id, el) => {
   if(id==='mypage') loadMyPage();
   if(id==='apply') loadApplyPage();
   if(id==='rule') loadRulePage();
+  if(id==='naejeon') loadNaejeonPage();
   if(id==='regs') loadRegsPage();
 };
 
@@ -1310,6 +1348,7 @@ async function loadAdmin(){
     let html = '';
     for(const d of snap.docs){
       const u = d.data();
+      if(!u.active && !showInactiveMembers) continue; // 탈퇴 회원 숨김
       let pts=0;
       try {
         const recSnap = await getDocs(query(collection(db,'records'), where('uid','==',d.id), where('month','==',month)));
@@ -1585,6 +1624,13 @@ window.adminRestore = async (uid, nick) => {
   showToast(`${nick}님 복구됨`); loadAdmin();
 };
 
+let showInactiveMembers = false;
+window.toggleShowInactive = () => {
+  showInactiveMembers = !showInactiveMembers;
+  document.getElementById('show-inactive-btn').textContent = showInactiveMembers ? '탈퇴 회원 숨기기' : '탈퇴 회원 보기';
+  loadAdmin();
+};
+
 let ptsModalUid = null, ptsModalMonth = null;
 window.openPtsModal = (uid, nick, pts) => {
   ptsModalUid = uid;
@@ -1822,6 +1868,221 @@ window.saveRuleSettings = async () => {
   document.getElementById('rule-edit-btn').textContent='✏️ 수정';
   showToast('룰북이 저장됐습니다 ✅');
 };
+
+// ── 내전 시스템 ──
+const NJ_POSITIONS = ['탑','정글','미드','원딜','서폿'];
+let njPlayers = {1:[], 2:[]};
+let njDrag = null;
+
+async function loadNaejeonPage(){
+  if(isAdmin) document.getElementById('nj-admin-section').style.display = 'block';
+  if(isAdmin){ renderNjTeamBuilder(1); renderNjTeamBuilder(2); }
+  await njLoadApplyStatus();
+  await loadNjHistory();
+}
+
+async function njLoadApplyStatus(){
+  try {
+    const snap = await getDocs(collection(db,'naejeonApply'));
+    let list1=[],list2=[];
+    snap.forEach(d=>{ const u=d.data(); if(u.game1) list1.push(u); if(u.game2) list2.push(u); });
+    document.getElementById('nj1-cnt').textContent = list1.length+'명';
+    document.getElementById('nj2-cnt').textContent = list2.length+'명';
+    const renderList = list => list.map(u=>`
+      <div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <span class="tb t${u.tier}" style="font-size:10px;">${TIER_NAMES[u.tier]||u.tier}</span>
+        <span style="flex:1;">${u.realname||u.nick} <span style="color:var(--text-dim);font-size:11px;">(${u.nick})</span></span>
+        <span style="font-size:11px;color:var(--text-dim);">${u.main||''}</span>
+      </div>`).join('') || '<div style="font-size:12px;color:var(--text-dim);padding:4px 0;">신청자 없음</div>';
+    document.getElementById('nj1-list').innerHTML = renderList(list1);
+    document.getElementById('nj2-list').innerHTML = renderList(list2);
+    if(currentUser){
+      const mySnap = await getDoc(doc(db,'naejeonApply',currentUser.uid));
+      const my = mySnap.exists() ? mySnap.data() : {};
+      const b1=document.getElementById('nj1-btn'), b2=document.getElementById('nj2-btn');
+      if(b1){ b1.textContent=my.game1?'✅ 신청완료 (취소)':'신청하기'; b1.className=my.game1?'btn btn-ghost btn-sm':'btn btn-red btn-sm'; }
+      if(b2){ b2.textContent=my.game2?'✅ 신청완료 (취소)':'신청하기'; b2.className=my.game2?'btn btn-ghost btn-sm':'btn btn-red btn-sm'; }
+    }
+  } catch(e){ console.error(e); }
+}
+
+window.njToggleApply = async (game) => {
+  if(!currentUser) return;
+  const mySnap = await getDoc(doc(db,'naejeonApply',currentUser.uid));
+  const my = mySnap.exists() ? mySnap.data() : {};
+  const field = `game${game}`;
+  const newVal = !my[field];
+  await setDoc(doc(db,'naejeonApply',currentUser.uid),{
+    uid:currentUser.uid, nick:currentProfile.nick, realname:currentProfile.realname||'',
+    tier:currentProfile.tier, main:currentProfile.main||'',
+    [field]:newVal, updatedAt:new Date().toISOString()
+  },{merge:true});
+  showToast(newVal?`내전${game} 신청 완료!`:`내전${game} 신청 취소`);
+  await njLoadApplyStatus();
+};
+
+function renderNjTeamBuilder(game){
+  const el = document.getElementById(`nj${game}-team-builder`);
+  if(!el) return;
+  const tNames = game===1?['1팀','2팀']:['3팀','4팀'];
+  el.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <button class="btn btn-red btn-sm" onclick="njLoadTeam(${game})">📥 신청자 불러오기</button>
+      <button class="btn btn-ghost btn-sm" onclick="njClearApply(${game})">🗑️ 신청 초기화</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:start;">
+      <div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:6px;">대기 <span id="nj${game}-pool-cnt"></span></div>
+        <div id="nj${game}-pool" style="min-height:60px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:6px;display:flex;flex-direction:column;gap:3px;"
+          ondragover="event.preventDefault()" ondrop="njDrop(event,${game},'pool')"></div>
+      </div>
+      <div>
+        <div style="font-size:12px;color:#ff5555;margin-bottom:6px;font-weight:700;">🔴 ${tNames[0]}</div>
+        ${NJ_POSITIONS.map(p=>`<div style="margin-bottom:5px;">
+          <div style="font-size:10px;color:var(--text-dim);margin-bottom:2px;">${p}</div>
+          <div id="nj${game}-t1-${p}" style="min-height:36px;background:var(--bg3);border:1px dashed #ff555544;border-radius:5px;padding:3px;"
+            ondragover="event.preventDefault()" ondrop="njDrop(event,${game},'t1-${p}')"></div>
+        </div>`).join('')}
+      </div>
+      <div>
+        <div style="font-size:12px;color:#5090d0;margin-bottom:6px;font-weight:700;">🔵 ${tNames[1]}</div>
+        ${NJ_POSITIONS.map(p=>`<div style="margin-bottom:5px;">
+          <div style="font-size:10px;color:var(--text-dim);margin-bottom:2px;">${p}</div>
+          <div id="nj${game}-t2-${p}" style="min-height:36px;background:var(--bg3);border:1px dashed #5090d044;border-radius:5px;padding:3px;"
+            ondragover="event.preventDefault()" ondrop="njDrop(event,${game},'t2-${p}')"></div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div id="nj${game}-result-btns" style="display:none;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center;">
+      <span style="font-size:12px;color:var(--text-dim);">결과 입력:</span>
+      <button class="btn btn-sm" style="background:#3a1010;color:#ff5555;border:1px solid #ff555544;" onclick="njRecordResult(${game},'t1')">🔴 ${tNames[0]} 승</button>
+      <button class="btn btn-sm" style="background:#101a3a;color:#5090d0;border:1px solid #5090d044;" onclick="njRecordResult(${game},'t2')">🔵 ${tNames[1]} 승</button>
+    </div>`;
+  renderNjPlayers(game);
+}
+
+function njCard(p, game){
+  return `<div draggable="true" ondragstart="njDragStart(event,${game},'${p.uid}')"
+    style="background:var(--bg4);border:1px solid var(--border);border-radius:5px;padding:5px 7px;cursor:grab;user-select:none;font-size:12px;display:flex;align-items:center;gap:5px;"
+    onmouseover="this.style.borderColor='#8a3030'" onmouseout="this.style.borderColor='var(--border)'">
+    <span class="tb t${p.tier}" style="font-size:10px;">${TIER_NAMES[p.tier]||p.tier}</span>
+    <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.realname||p.nick}</span>
+    <span style="font-size:10px;color:var(--text-dim);">${p.main||''}</span>
+  </div>`;
+}
+
+function renderNjPlayers(game){
+  const players = njPlayers[game];
+  const poolEl = document.getElementById(`nj${game}-pool`);
+  if(!poolEl) return;
+  const pool = players.filter(p=>p.loc==='pool');
+  const cntEl = document.getElementById(`nj${game}-pool-cnt`);
+  if(cntEl) cntEl.textContent = pool.length+'명';
+  poolEl.innerHTML = pool.map(p=>njCard(p,game)).join('') ||
+    '<div style="font-size:11px;color:var(--text-dim);text-align:center;padding:8px 0;">비어 있음</div>';
+  ['t1','t2'].forEach(tk=>{
+    NJ_POSITIONS.forEach(pos=>{
+      const sl = document.getElementById(`nj${game}-${tk}-${pos}`);
+      if(!sl) return;
+      const p = players.find(p=>p.loc===`${tk}-${pos}`);
+      sl.innerHTML = p ? njCard(p,game) : '';
+    });
+  });
+  const t1Full = NJ_POSITIONS.every(pos=>players.some(p=>p.loc===`t1-${pos}`));
+  const t2Full = NJ_POSITIONS.every(pos=>players.some(p=>p.loc===`t2-${pos}`));
+  const rb = document.getElementById(`nj${game}-result-btns`);
+  if(rb) rb.style.display = (t1Full&&t2Full) ? 'flex' : 'none';
+}
+
+window.njDragStart = (e, game, uid) => { njDrag = {game, uid}; };
+
+window.njDrop = (e, game, zone) => {
+  e.preventDefault();
+  if(!njDrag || njDrag.game!==game) return;
+  const p = njPlayers[game].find(pl=>pl.uid===njDrag.uid);
+  if(!p) return;
+  if(zone!=='pool'){
+    const existing = njPlayers[game].find(pl=>pl.loc===zone);
+    if(existing) existing.loc = p.loc;
+  }
+  p.loc = zone;
+  njDrag = null;
+  renderNjPlayers(game);
+};
+
+window.njLoadTeam = async (game) => {
+  const snap = await getDocs(collection(db,'naejeonApply'));
+  const players = [];
+  snap.forEach(d=>{ const u=d.data(); if(u[`game${game}`]) players.push({uid:d.id,nick:u.nick,realname:u.realname||'',tier:u.tier,main:u.main||'',loc:'pool'}); });
+  if(!players.length){ showToast('신청자가 없습니다'); njPlayers[game]=[]; renderNjPlayers(game); return; }
+  njPlayers[game] = players;
+  renderNjPlayers(game);
+  showToast(`신청자 ${players.length}명 불러왔습니다`);
+};
+
+window.njClearApply = async (game) => {
+  if(!confirm(`내전${game} 신청을 모두 초기화하시겠습니까?`)) return;
+  const snap = await getDocs(collection(db,'naejeonApply'));
+  for(const d of snap.docs) await updateDoc(doc(db,'naejeonApply',d.id),{[`game${game}`]:false});
+  njPlayers[game] = [];
+  renderNjPlayers(game);
+  await njLoadApplyStatus();
+  showToast(`내전${game} 신청 초기화됐습니다`);
+};
+
+window.njRecordResult = async (game, winner) => {
+  const players = njPlayers[game];
+  const t1 = players.filter(p=>p.loc.startsWith('t1-'));
+  const t2 = players.filter(p=>p.loc.startsWith('t2-'));
+  if(t1.length!==5||t2.length!==5){ showToast('각 팀 5명이 모두 배치되어야 합니다'); return; }
+  const tNames = game===1?['1팀','2팀']:['3팀','4팀'];
+  const winnerName = winner==='t1'?tNames[0]:tNames[1];
+  if(!confirm(`내전${game} — ${winnerName} 승리로 기록하시겠습니까?\n선수 전원 승/패가 자동 기록됩니다.`)) return;
+  const date = todayStr(), month = ym(new Date()), now = new Date().toISOString();
+  await addDoc(collection(db,'naejeonSessions'),{
+    game, date, createdAt:now, winner,
+    team1: t1.map(p=>({uid:p.uid,nick:p.nick,realname:p.realname,tier:p.tier,pos:p.loc.replace('t1-','')})),
+    team2: t2.map(p=>({uid:p.uid,nick:p.nick,realname:p.realname,tier:p.tier,pos:p.loc.replace('t2-','')}))
+  });
+  const winList = winner==='t1'?t1:t2, loseList = winner==='t1'?t2:t1;
+  for(const p of winList) await addDoc(collection(db,'records'),{uid:p.uid,nick:p.nick,type:'naejeon',date,result:'win',pts:1,month,createdAt:now,addedByAdmin:true,naejeonGame:game});
+  for(const p of loseList) await addDoc(collection(db,'records'),{uid:p.uid,nick:p.nick,type:'naejeon',date,result:'loss',pts:1,month,createdAt:now,addedByAdmin:true,naejeonGame:game});
+  showToast(`내전${game} 결과 기록 완료! 🎉`);
+  njPlayers[game] = [];
+  renderNjPlayers(game);
+  await njLoadApplyStatus();
+  await loadNjHistory();
+  loadRanking();
+};
+
+async function loadNjHistory(){
+  const el = document.getElementById('nj-history');
+  if(!el) return;
+  try {
+    const snap = await getDocs(query(collection(db,'naejeonSessions'),orderBy('date','desc')));
+    if(snap.empty){ el.innerHTML='<div class="empty-hint">기록이 없습니다</div>'; return; }
+    const tMap = {1:['1팀','2팀'],2:['3팀','4팀']};
+    el.innerHTML = snap.docs.map(d=>{
+      const s=d.data();
+      const tn=tMap[s.game]||['1팀','2팀'];
+      const wName=s.winner==='t1'?tn[0]:tn[1];
+      const wColor=s.winner==='t1'?'#ff5555':'#5090d0';
+      const rTeam=(team,tk)=>team.map(p=>`<span style="font-size:11px;padding:2px 5px;background:var(--bg3);border-radius:4px;border:1px solid var(--border);white-space:nowrap;">
+        <span style="font-size:10px;color:var(--text-dim);">${p.pos}</span> ${p.realname||p.nick}</span>`).join('');
+      return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+          <span style="font-size:11px;color:var(--text-dim);">${s.date}</span>
+          <span style="font-size:12px;font-weight:700;">내전${s.game}</span>
+          <span style="font-size:11px;background:${wColor}20;color:${wColor};border:1px solid ${wColor}44;padding:2px 8px;border-radius:10px;">🏆 ${wName} 승</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div><div style="font-size:10px;color:#ff5555;margin-bottom:4px;font-weight:700;">🔴 ${tn[0]}${s.winner==='t1'?' 🏆':''}</div><div style="display:flex;flex-wrap:wrap;gap:3px;">${rTeam(s.team1,'t1')}</div></div>
+          <div><div style="font-size:10px;color:#5090d0;margin-bottom:4px;font-weight:700;">🔵 ${tn[1]}${s.winner==='t2'?' 🏆':''}</div><div style="display:flex;flex-wrap:wrap;gap:3px;">${rTeam(s.team2,'t2')}</div></div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e){ el.innerHTML='<div class="empty-hint">기록 불러오기 실패: '+e.message+'</div>'; }
+}
 
 // ── APPLY ──
 async function loadApplyPage(){
