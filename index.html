@@ -1364,6 +1364,7 @@ async function loadAdmin(){
           <button class="adm-btn" style="border-color:#4a4a7a;color:#8888cc;" onclick="toggleRest('${d.id}','${u.nick}',${!!isResting})">
             ${isResting?'휴식기 종료':'휴식기 처리'}
           </button>
+          <button class="adm-btn" style="border-color:#3a5a3a;color:#88cc88;" onclick="adminResetRest('${d.id}','${u.nick}')">휴식기 리셋</button>
           ${u.isAdmin?`<button class="adm-btn" style="border-color:#7a5f22;color:var(--gold);" onclick="adminDemote('${d.id}','${u.nick}')">👑 관리자 해제</button>`:`<button class="adm-btn" style="border-color:#5a7a22;color:#aadd44;" onclick="adminPromote('${d.id}','${u.nick}')">관리자 승격</button>`}
           ${u.active?`<button class="adm-btn kick" onclick="adminKick('${d.id}','${u.nick}')">탈퇴</button>`:`<button class="adm-btn" onclick="adminRestore('${d.id}','${u.nick}')">복구</button>`}
         </div>
@@ -1572,6 +1573,11 @@ window.adminKick = async (uid, nick) => {
   if(!confirm(`${nick}님을 탈퇴 처리하시겠습니까?`)) return;
   await updateDoc(doc(db,'users',uid),{active:false});
   showToast(`${nick}님 탈퇴 처리됨`); loadAdmin();
+};
+window.adminResetRest = async (uid, nick) => {
+  if(!confirm(`${nick}님의 휴식기 사용 횟수를 리셋하시겠습니까?\n(0/2회로 초기화)`)) return;
+  await updateDoc(doc(db,'users',uid),{ restUsedThisPeriod: 0, restCount: 0, lastRestReset: todayStr() });
+  showToast(`${nick}님 휴식기 리셋 완료`); loadAdmin();
 };
 window.adminRestore = async (uid, nick) => {
   if(!confirm(`${nick}님을 복구하시겠습니까?`)) return;
