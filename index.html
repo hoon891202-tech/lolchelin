@@ -196,16 +196,20 @@ select.inp option{background:#1e1e1e;}
       <button class="auth-tab" onclick="switchAuthTab('signup',this)">회원가입</button>
     </div>
     <div id="auth-login">
-      <input id="login-email" class="auth-field" type="email" placeholder="이메일">
-      <input id="login-pw" class="auth-field" type="password" placeholder="비밀번호" onkeydown="if(event.key==='Enter')doLogin()">
+      <input id="login-email" class="auth-field" type="email" placeholder="이메일" autocomplete="email">
+      <input id="login-pw" class="auth-field" type="password" placeholder="비밀번호" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;text-align:left;">
+        <input type="checkbox" id="remember-me" checked style="width:14px;height:14px;cursor:pointer;accent-color:var(--red2);">
+        <label for="remember-me" style="font-size:12px;color:var(--text-dim);cursor:pointer;">로그인 상태 유지</label>
+      </div>
       <button class="auth-btn" onclick="doLogin()">로그인</button>
     </div>
     <div id="auth-signup" style="display:none">
       <input id="signup-nick" class="auth-field" type="text" placeholder="닉네임 (소환사명)">
       <input id="signup-realname" class="auth-field" type="text" placeholder="실제 이름">
       <input id="signup-birthyear" class="auth-field" type="number" placeholder="출생년도 (예: 1998)" min="1970" max="2010">
-      <input id="signup-email" class="auth-field" type="email" placeholder="이메일">
-      <input id="signup-pw" class="auth-field" type="password" placeholder="비밀번호 (6자 이상)">
+      <input id="signup-email" class="auth-field" type="email" placeholder="이메일" autocomplete="email">
+      <input id="signup-pw" class="auth-field" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="new-password">
       <select id="signup-tier" class="auth-field inp">
         <option value="">티어 선택</option>
         <option value="C">챌린저</option><option value="GM">그랜드마스터</option>
@@ -719,7 +723,7 @@ select.inp option{background:#1e1e1e;}
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged }
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, browserLocalPersistence, setPersistence }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, getDocs, collection, addDoc, deleteDoc, updateDoc, query, where, orderBy }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -735,6 +739,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// 로그인 상태 브라우저에 영구 저장 (창 닫아도 유지)
+setPersistence(auth, browserLocalPersistence);
 
 // ADMIN UIDs (Firebase UID로 설정 — 첫 가입 후 추가)
 const ADMIN_UIDS = ["0vg5Ki56xZTSNh7JJRqOOSUZ3zn1"];
@@ -758,7 +765,10 @@ window.switchAuthTab = (tab, el) => {
 window.doLogin = async () => {
   const email = document.getElementById('login-email').value.trim();
   const pw = document.getElementById('login-pw').value;
+  const remember = document.getElementById('remember-me').checked;
   try {
+    const { browserSessionPersistence } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+    await setPersistence(auth, remember ? browserLocalPersistence : browserSessionPersistence);
     await signInWithEmailAndPassword(auth, email, pw);
   } catch(e) {
     document.getElementById('auth-err').textContent = '이메일 또는 비밀번호가 틀렸습니다';
@@ -1202,14 +1212,39 @@ window.cancelRest = async () => {
 window.applyRest = async () => {
   const reason = document.getElementById('rest-reason').value.trim();
   const restCount = currentProfile.restCount || 0;
-  if(restCount >= 2){ showToast('올해 휴식기를 모두 사용했습니다 (연 2회)'); document.getElementById('rest-modal').style.display='none'; return; }
+  const joinedAt = currentProfile.joinedAt ? new Date(currentProfile.joinedAt) : new Date();
   const now = new Date();
+
+  // 가입일 기준 1년 주기로 2회 리셋 체크
+  const yearsSinceJoin = Math.floor((now - joinedAt) / (365.25 * 24 * 3600 * 1000));
+  const restPeriodStart = new Date(joinedAt.getFullYear() + yearsSinceJoin, joinedAt.getMonth(), joinedAt.getDate());
+  const restUsedThisPeriod = currentProfile.restUsedThisPeriod || 0;
+  const lastResetYear = currentProfile.lastRestReset || joinedAt.toISOString().slice(0,10);
+
+  // 1년이 지나서 새 주기면 리셋
+  if(now >= new Date(new Date(lastResetYear).getTime() + 365.25*24*3600*1000)){
+    await updateDoc(doc(db,'users',currentUser.uid),{ restUsedThisPeriod: 0, lastRestReset: now.toISOString().slice(0,10) });
+    currentProfile.restUsedThisPeriod = 0;
+  }
+
+  const usedThisPeriod = currentProfile.restUsedThisPeriod || 0;
+  if(usedThisPeriod >= 2){
+    const nextReset = new Date(new Date(lastResetYear).getTime() + 365.25*24*3600*1000);
+    showToast(`휴식기 2회 모두 사용. 다음 부여일: ${nextReset.toISOString().slice(0,10)}`);
+    document.getElementById('rest-modal').style.display='none'; return;
+  }
   if(now.getDate() < 20){ showToast('휴식기 신청은 매월 20일 이후에 가능합니다'); document.getElementById('rest-modal').style.display='none'; return; }
   const nextMonth = new Date(now.getFullYear(), now.getMonth()+1, 1);
   const applyFrom = nextMonth.toISOString().slice(0,7);
-  await updateDoc(doc(db,'users',currentUser.uid),{ restCount: restCount+1, restActive: true, restFrom: applyFrom });
+  await updateDoc(doc(db,'users',currentUser.uid),{
+    restCount: restCount+1,
+    restUsedThisPeriod: usedThisPeriod+1,
+    lastRestReset: currentProfile.lastRestReset || joinedAt.toISOString().slice(0,10),
+    restActive: true, restFrom: applyFrom
+  });
   await addDoc(collection(db,'restlogs'),{ uid: currentUser.uid, nick: currentProfile.nick, reason, applyFrom, createdAt: new Date().toISOString() });
   currentProfile.restCount = restCount+1;
+  currentProfile.restUsedThisPeriod = usedThisPeriod+1;
   document.getElementById('rest-modal').style.display='none';
   showToast(`휴식기 신청 완료! ${applyFrom}부터 적용됩니다 😴`);
   loadMyPage();
@@ -1255,11 +1290,14 @@ async function loadAdmin(){
       const statusLabel = u.status==='suspended'?'활동정지':u.status==='disqualified'?'자격박탈':['정상','경고1','경고2','제명'][Math.min(w,3)];
       const ws = statusLabel;
       const exCount = u.exemptions||0;
-      // 면제권 사용 횟수 = warnlogs에서 '면제권 사용' 기록 수
-      const exUsedSnap = await getDocs(query(collection(db,'warnlogs'), where('uid','==',d.id), where('reason','>=','면제권'), where('reason','<=','면제권')));
-      const usedEx = exUsedSnap.size;
+      // 면제권 사용 횟수 = warnlogs에서 해당 uid 기록 중 면제권 사용 카운트
+      const exUsedSnap = await getDocs(query(collection(db,'warnlogs'), where('uid','==',d.id)));
+      let usedEx = 0;
+      exUsedSnap.forEach(w=>{ if((w.data().reason||'').includes('면제권')) usedEx++; });
       const isResting = u.restActive && u.restFrom;
+      const restUsed = u.restUsedThisPeriod || 0;
       const restLabel = isResting ? `😴 휴식중 (${u.restFrom}~)` : '';
+      const restPeriodLabel = `휴식기 ${restUsed}/2회`;
       html += `<div class="admin-member-row" id="admrow-${d.id}" style="${isResting?'border-color:#404060;opacity:0.85;':''}">
         <div style="flex:1;min-width:120px;">
           <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
@@ -1267,6 +1305,7 @@ async function loadAdmin(){
             ${u.isAdmin?'<span style="font-size:10px;color:var(--gold);">👑 관리자</span>':''}
             ${!u.active?'<span style="color:#ff4444;font-size:11px;">(탈퇴)</span>':''}
             ${isResting?`<span style="font-size:10px;background:#2a2a4a;color:#8888cc;border:1px solid #4a4a7a55;padding:1px 7px;border-radius:10px;">${restLabel}</span>`:''}
+            <span style="font-size:10px;color:${restUsed>=2?'#ff8800':'var(--text-dim)'};">${restPeriodLabel}</span>
           </div>
           <div style="display:flex;gap:6px;align-items:center;margin-top:3px;flex-wrap:wrap;">
             <span class="tb t${u.tier}" style="font-size:10px;">${TIER_NAMES[u.tier]||u.tier}</span>
@@ -1288,6 +1327,8 @@ async function loadAdmin(){
           <button class="adm-btn warn" onclick="openWarnModal('${d.id}','${u.realname||u.nick}',${w})">경고+</button>
           <button class="adm-btn" onclick="adminUnwarn('${d.id}',${w})">경고-</button>
           <button class="adm-btn" onclick="openPtsModal('${d.id}','${u.nick}',${pts})">점수수정</button>
+          <button class="adm-btn" style="border-color:#7a6a22;color:var(--gold-light);" onclick="adminAddExemption('${d.id}','${u.nick}')">면제권+</button>
+          <button class="adm-btn" style="border-color:#5a5020;color:#aaa860;" onclick="adminRemoveExemption('${d.id}','${u.nick}',${exCount})">면제권-</button>
           <button class="adm-btn" style="border-color:#4a4a7a;color:#8888cc;" onclick="toggleRest('${d.id}','${u.nick}',${!!isResting})">
             ${isResting?'휴식기 종료':'휴식기 처리'}
           </button>
@@ -1412,6 +1453,28 @@ window.calcAndGiveExemption = async () => {
   }
 
   showToast('면제권 지급 완료! 🏆'); loadAdmin();
+};
+
+window.adminAddExemption = async (uid, nick) => {
+  const snap = await getDoc(doc(db,'users',uid));
+  const cur = snap.exists()?(snap.data().exemptions||0):0;
+  await updateDoc(doc(db,'users',uid),{exemptions: cur+1});
+  await addDoc(collection(db,'warnlogs'),{
+    uid, reason:'관리자 면제권 수동 지급', warnings:0,
+    date: todayStr(), month: ym(new Date()), createdAt: new Date().toISOString(), issuedBy: currentUser.uid
+  });
+  showToast(`${nick}님 면제권 +1장 (총 ${cur+1}장)`); loadAdmin();
+};
+
+window.adminRemoveExemption = async (uid, nick, cur) => {
+  if(cur <= 0){ showToast('면제권이 없습니다'); return; }
+  if(!confirm(`${nick}님 면제권 1장을 회수하시겠습니까? (현재 ${cur}장)`)) return;
+  await updateDoc(doc(db,'users',uid),{exemptions: cur-1});
+  await addDoc(collection(db,'warnlogs'),{
+    uid, reason:'관리자 면제권 회수', warnings:0,
+    date: todayStr(), month: ym(new Date()), createdAt: new Date().toISOString(), issuedBy: currentUser.uid
+  });
+  showToast(`${nick}님 면제권 회수 (남은 ${cur-1}장)`); loadAdmin();
 };
 
 window.toggleRest = async (uid, nick, isResting) => {
@@ -1608,6 +1671,7 @@ async function loadApplyPage(){
 }
 
 async function loadApplicantList(){
+  try {
   const snap = await getDocs(query(collection(db,'applicants'), where('applied','==',true)));
   const uids = [];
   snap.forEach(d=> uids.push(d.data()));
