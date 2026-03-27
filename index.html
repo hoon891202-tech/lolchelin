@@ -847,7 +847,7 @@ window.showPage = (id, el) => {
 };
 
 // ── UTILS ──
-function ym(date){ return date.toISOString().slice(0,7); }
+function ym(date){ return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0'); }
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
 
@@ -1741,9 +1741,9 @@ window.loadDraftMembers = async () => {
   const applySnap = await getDocs(query(collection(db,'applicants'), where('applied','==',true)));
   const appliedUids = new Set();
   applySnap.forEach(d => appliedUids.add(d.data().uid));
-  if(!appliedUids.size){ showToast('신청자가 없습니다'); return; }
-  const snap = await getDocs(collection(db,'users'));
   draftPlayers = [];
+  if(!appliedUids.size){ renderDraft(); showToast('신청자가 없습니다'); return; }
+  const snap = await getDocs(collection(db,'users'));
   snap.forEach(d=>{ const u=d.data(); if(u.active && appliedUids.has(d.id)) draftPlayers.push({id:d.id,...u,loc:'pool'}); });
   draftPlayers.sort((a,b)=>(TIER_PTS_MAP[b.tier]||0)-(TIER_PTS_MAP[a.tier]||0));
   renderDraft();
