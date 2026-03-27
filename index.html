@@ -915,8 +915,9 @@ function initDates(){
   const now = new Date();
   // 이번 달 1일부터 오늘까지 입력 가능
   const minDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-  ['jar-date','nae-date'].forEach(id=>{
+  ['jar-date'].forEach(id=>{
     const el = document.getElementById(id);
+    if(!el) return;
     el.value = today;
     el.min = minDate;
     el.max = today;
@@ -2005,7 +2006,7 @@ window.njDrop = (e, game, zone) => {
 window.njLoadTeam = async (game) => {
   const snap = await getDocs(collection(db,'naejeonApply'));
   const players = [];
-  snap.forEach(d=>{ const u=d.data(); if(u[`game${game}`]) players.push({uid:d.id,nick:u.nick,realname:u.realname||'',tier:u.tier,main:u.main||'',loc:'pool'}); });
+  snap.forEach(d=>{ const u=d.data(); if(u[`game${game}`]) players.push({uid:d.id,nick:u.nick,realname:u.realname||'',tier:u.tier,main:u.main||'',sub:u.sub||'',loc:'pool'}); });
   if(!players.length){ showToast('신청자가 없습니다'); njPlayers[game]=[]; renderNjPlayers(game); return; }
   njPlayers[game] = players;
   renderNjPlayers(game);
