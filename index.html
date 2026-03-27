@@ -247,6 +247,7 @@ select.inp option{background:#1e1e1e;}
   <div class="nav-tab" onclick="showPage('record',this)">📝 기록</div>
   <div class="nav-tab" onclick="showPage('stats',this)">📊 통계</div>
   <div class="nav-tab" onclick="showPage('naejeon',this)">⚔️ 내전</div>
+  <div class="nav-tab" onclick="showPage('jarparty',this)">🎮 자랭파티</div>
   <div class="nav-tab" onclick="showPage('regs',this)">📜 운영 규정</div>
   <div class="nav-tab" onclick="showPage('rule',this)">📋 드래프트 룰북</div>
   <div class="nav-tab" onclick="showPage('apply',this)">✋ 드래프트 신청</div>
@@ -371,6 +372,17 @@ select.inp option{background:#1e1e1e;}
   <div class="card">
     <div class="card-header"><span class="card-icon">📋</span><span class="card-title">내전 기록</span><span class="card-note">날짜별</span></div>
     <div id="nj-history" style="padding:12px;"><div class="loading">불러오는 중...</div></div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 자랭파티 ══ -->
+<div id="page-jarparty" class="page">
+<div class="wrap">
+  <div id="jp-slots-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;"></div>
+  <div class="card">
+    <div class="card-header"><span class="card-icon">📋</span><span class="card-title">자랭파티 기록</span><span class="card-note">날짜별</span></div>
+    <div id="jp-history" style="padding:12px;"><div class="loading">불러오는 중...</div></div>
   </div>
 </div>
 </div>
@@ -697,6 +709,10 @@ select.inp option{background:#1e1e1e;}
         • <b style="color:#40c070;">참여왕</b> : 이번 달 전체 포인트 1위<br>
         • 각 1인에게 면제권 1장 자동 지급
       </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:var(--text-dim);">정산 월:</span>
+        <select id="king-month-select" class="inp btn-sm" style="width:110px;"></select>
+      </div>
       <div id="king-preview" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
       <button class="btn btn-gold btn-sm" onclick="calcAndGiveExemption()">🏆 이달의 왕 계산 & 면제권 지급</button>
     </div>
@@ -885,6 +901,7 @@ window.showPage = (id, el) => {
   if(id==='apply') loadApplyPage();
   if(id==='rule') loadRulePage();
   if(id==='naejeon') loadNaejeonPage();
+  if(id==='jarparty') loadJarPartyPage();
   if(id==='regs') loadRegsPage();
 };
 
@@ -1331,6 +1348,16 @@ async function loadAdmin(){
   autoReduceWarnings(); // 관리자 페이지 열릴 때 자동 차감 실행
   // 날짜 초기화
   document.getElementById('adm-rec-date').value = todayStr();
+  // 내전왕/참여왕 정산 월 셀렉트 초기화
+  const kingMonthSel = document.getElementById('king-month-select');
+  if(kingMonthSel && !kingMonthSel.options.length){
+    const now2 = new Date();
+    const start2 = new Date(2026, 2, 1);
+    for(let d=new Date(now2.getFullYear(),now2.getMonth(),1); d>=start2; d.setMonth(d.getMonth()-1)){
+      const opt=document.createElement('option'); opt.value=ym(d); opt.textContent=`${d.getFullYear()}년 ${d.getMonth()+1}월`;
+      kingMonthSel.appendChild(opt);
+    }
+  }
   try {
     const snap = await getDocs(collection(db,'users'));
     const now = new Date(); const month = ym(now);
@@ -1482,8 +1509,9 @@ window.adminUnwarn = async (uid, cur) => {
   showToast('경고 취소됐습니다'); loadAdmin();
 };
 window.calcAndGiveExemption = async () => {
-  const now = new Date();
-  const month = ym(now);
+  const sel = document.getElementById('king-month-select');
+  const month = sel ? sel.value : ym(new Date());
+  if(!month){ showToast('정산 월을 선택해주세요'); return; }
   const usersSnap = await getDocs(collection(db,'users'));
   const stats = [];
   for(const d of usersSnap.docs){
@@ -2125,6 +2153,245 @@ window.njDeleteSession = async function(sid){
     await deleteDoc(doc(db,'naejeonSessions',sid));
     showToast('삭제 완료');
     await loadNjHistory();
+  } catch(e){ showToast('삭제 실패: '+e.message); }
+};
+
+// ── 자랭파티 시스템 ──
+const JP_SLOTS = [1,2,3,4,5];
+let jpHistoryDocs = [];
+let jpHistoryPage = 1;
+const JP_HISTORY_PER_PAGE = 10;
+
+async function loadJarPartyPage(){
+  await jpRenderSlots();
+  await loadJpHistory();
+}
+
+async function jpRenderSlots(){
+  const grid = document.getElementById('jp-slots-grid');
+  if(!grid) return;
+  try {
+    const cards = await Promise.all(JP_SLOTS.map(n => jpRenderSlotCard(n)));
+    grid.innerHTML = cards.join('');
+  } catch(e){ console.error('jpRenderSlots error:', e); }
+}
+
+async function jpRenderSlotCard(n){
+  const snap = await getDoc(doc(db,'jarPartySlots',`slot${n}`));
+  const slot = snap.exists() ? snap.data() : {open:false, members:[], mode:null};
+  const members = slot.members || [];
+  const isOpen = !!(slot.open && slot.mode);
+  const myUid = currentUser ? currentUser.uid : null;
+  const isMember = members.some(m => m.uid === myUid);
+  const isHost = members.length > 0 && members[0].uid === myUid;
+  const isFull = members.length >= 5;
+  const modeLabel = slot.mode === 'pak' ? '🔥 빡겜' : slot.mode === 'jeul' ? '😊 즐겜' : '';
+  const modeColor = slot.mode === 'pak' ? '#ff5555' : '#40c070';
+
+  let content = '';
+  if(!isOpen){
+    content = `
+      <div style="text-align:center;padding:16px 0;">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">방이 비어있습니다</div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <button class="btn btn-sm" style="background:#3a1010;color:#ff5555;border:1px solid #ff555544;" onclick="jpOpenSlot(${n},'pak')">🔥 빡겜 열기</button>
+          <button class="btn btn-sm" style="background:#1a3020;color:#40c070;border:1px solid #40c07044;" onclick="jpOpenSlot(${n},'jeul')">😊 즐겜 열기</button>
+        </div>
+      </div>`;
+  } else {
+    const memberList = members.map((m,i) => {
+      const badge = i===0
+        ? '<span style="font-size:10px;color:var(--gold);">👑</span>'
+        : `<span style="font-size:10px;color:var(--text-dim);width:14px;text-align:center;">${i+1}</span>`;
+      return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        ${badge}
+        <span class="tb t${m.tier}" style="font-size:10px;">${TIER_NAMES[m.tier]||m.tier}</span>
+        <span style="flex:1;">${m.realname||m.nick}<span style="color:var(--text-dim);font-size:11px;margin-left:4px;">(${m.nick})</span></span>
+        <span style="font-size:11px;color:var(--text-dim);">${m.main||''}</span>
+      </div>`;
+    }).join('') || '<div style="font-size:12px;color:var(--text-dim);padding:4px 0;">신청자 없음</div>';
+
+    let actionBtns = '';
+    if(isFull){
+      if(isHost){
+        actionBtns = `
+          <div style="margin-top:10px;padding:10px;background:var(--bg4);border-radius:6px;border:1px solid var(--border);">
+            <div style="font-size:11px;color:var(--gold);margin-bottom:6px;">🏆 5명 모집 완료! 판수를 입력하세요</div>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input type="number" id="jp-games-${n}" min="1" max="99" value="1" class="inp" style="width:70px;text-align:center;">
+              <span style="font-size:12px;color:var(--text-dim);">판</span>
+              <button class="btn btn-gold btn-sm" onclick="jpComplete(${n})" style="flex:1;">✅ 완료 기록</button>
+            </div>
+          </div>`;
+      } else {
+        actionBtns = `<div style="margin-top:8px;text-align:center;font-size:12px;color:var(--gold);">🏆 5명 모집 완료! 방장이 기록 중입니다</div>`;
+      }
+    } else if(isMember){
+      actionBtns = `<button class="btn btn-ghost btn-sm" style="margin-top:8px;width:100%;" onclick="jpLeave(${n})">✅ 신청완료 (취소)</button>`;
+    } else {
+      actionBtns = `<button class="btn btn-red btn-sm" style="margin-top:8px;width:100%;" onclick="jpJoin(${n})">신청하기</button>`;
+    }
+
+    const adminBtns = isAdmin ? `<div style="margin-top:6px;"><button onclick="jpAdminClose(${n})" style="font-size:11px;padding:2px 8px;background:#3a1010;border:1px solid #6a2020;color:#ff6666;border-radius:4px;cursor:pointer;">🗑 방 초기화</button></div>` : '';
+    content = `<div>${memberList}${actionBtns}${adminBtns}</div>`;
+  }
+
+  const headerNote = isOpen
+    ? `<span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${modeColor}20;color:${modeColor};border:1px solid ${modeColor}44;">${modeLabel}</span><span style="font-size:11px;color:var(--text-dim);margin-left:4px;">${members.length}/5</span>`
+    : '<span class="card-note">비어있음</span>';
+
+  return `<div class="card">
+    <div class="card-header">
+      <span class="card-icon">🎮</span>
+      <span class="card-title">자랭파티 ${n}</span>
+      <span style="margin-left:auto;display:flex;align-items:center;gap:4px;">${headerNote}</span>
+    </div>
+    <div style="padding:12px;">${content}</div>
+  </div>`;
+}
+
+window.jpOpenSlot = async (n, mode) => {
+  if(!currentUser) return;
+  const slotRef = doc(db,'jarPartySlots',`slot${n}`);
+  const snap = await getDoc(slotRef);
+  if(snap.exists() && snap.data().open){ showToast('이미 열린 방입니다'); await jpRenderSlots(); return; }
+  const me = {uid:currentUser.uid, nick:currentProfile.nick, realname:currentProfile.realname||'', tier:currentProfile.tier, main:currentProfile.main||'', joinedAt:new Date().toISOString()};
+  await setDoc(slotRef, {open:true, mode, members:[me], createdAt:new Date().toISOString()});
+  showToast(`자랭파티 ${n} 개설! (${mode==='pak'?'빡겜':'즐겜'})`);
+  await jpRenderSlots();
+};
+
+window.jpJoin = async (n) => {
+  if(!currentUser) return;
+  const slotRef = doc(db,'jarPartySlots',`slot${n}`);
+  const snap = await getDoc(slotRef);
+  if(!snap.exists() || !snap.data().open){ showToast('방을 찾을 수 없습니다'); await jpRenderSlots(); return; }
+  const members = snap.data().members || [];
+  if(members.length >= 5){ showToast('방이 이미 꽉 찼습니다'); await jpRenderSlots(); return; }
+  if(members.some(m=>m.uid===currentUser.uid)){ showToast('이미 신청하셨습니다'); return; }
+  const me = {uid:currentUser.uid, nick:currentProfile.nick, realname:currentProfile.realname||'', tier:currentProfile.tier, main:currentProfile.main||'', joinedAt:new Date().toISOString()};
+  await updateDoc(slotRef, {members:[...members, me]});
+  showToast(`자랭파티 ${n} 신청 완료!`);
+  await jpRenderSlots();
+};
+
+window.jpLeave = async (n) => {
+  if(!currentUser) return;
+  const slotRef = doc(db,'jarPartySlots',`slot${n}`);
+  const snap = await getDoc(slotRef);
+  if(!snap.exists()) return;
+  const data = snap.data();
+  const members = (data.members||[]).filter(m=>m.uid!==currentUser.uid);
+  if(members.length === 0){
+    await setDoc(slotRef, {open:false, mode:null, members:[], createdAt:null});
+    showToast('방에서 나왔습니다 (방 해산)');
+  } else {
+    await updateDoc(slotRef, {members});
+    showToast('신청을 취소했습니다');
+  }
+  await jpRenderSlots();
+};
+
+window.jpComplete = async (n) => {
+  if(!currentUser) return;
+  const gamesEl = document.getElementById(`jp-games-${n}`);
+  const games = parseInt(gamesEl ? gamesEl.value : 0);
+  if(!games || games < 1){ showToast('판수를 입력해주세요'); return; }
+  const slotRef = doc(db,'jarPartySlots',`slot${n}`);
+  const snap = await getDoc(slotRef);
+  if(!snap.exists()) return;
+  const slot = snap.data();
+  const members = slot.members || [];
+  if(members.length < 5){ showToast('5명이 모두 있어야 합니다'); return; }
+  if(members[0].uid !== currentUser.uid){ showToast('방장만 완료할 수 있습니다'); return; }
+  if(!confirm(`자랭파티 ${n} — ${games}판 완료로 기록하시겠습니까?\n5명 전원에게 자동으로 기록됩니다.`)) return;
+  const date = todayStr(), month = ym(new Date()), now = new Date().toISOString();
+  const pts = games * 0.5;
+  const sessionRef = await addDoc(collection(db,'jarPartySessions'),{
+    slot:n, mode:slot.mode, date, month, games, pts, createdAt:now,
+    members:members.map(m=>({uid:m.uid,nick:m.nick,realname:m.realname,tier:m.tier})),
+    completedBy:currentUser.uid
+  });
+  const sid = sessionRef.id;
+  for(const m of members){
+    await addDoc(collection(db,'records'),{
+      uid:m.uid, nick:m.nick, type:'jarang', date, games, pts, month,
+      createdAt:now, jarPartySessionId:sid, jarPartySlot:n,
+      note:`자랭파티${n} (${slot.mode==='pak'?'빡겜':'즐겜'})`
+    });
+  }
+  await setDoc(slotRef, {open:false, mode:null, members:[], createdAt:null});
+  showToast(`자랭파티 ${n} 완료! ${games}판 기록됐습니다 🎉`);
+  await jpRenderSlots();
+  await loadJpHistory();
+  loadRanking();
+};
+
+window.jpAdminClose = async (n) => {
+  if(!isAdmin) return;
+  if(!confirm(`자랭파티 ${n}을 초기화하시겠습니까?`)) return;
+  await setDoc(doc(db,'jarPartySlots',`slot${n}`), {open:false, mode:null, members:[], createdAt:null});
+  showToast(`자랭파티 ${n} 초기화됐습니다`);
+  await jpRenderSlots();
+};
+
+async function loadJpHistory(){
+  const el = document.getElementById('jp-history');
+  if(!el) return;
+  try {
+    const snap = await getDocs(query(collection(db,'jarPartySessions'),orderBy('date','desc')));
+    jpHistoryDocs = snap.docs;
+    jpHistoryPage = 1;
+    renderJpHistory();
+  } catch(e){ el.innerHTML='<div class="empty-hint">기록 불러오기 실패: '+e.message+'</div>'; }
+}
+
+function renderJpHistory(){
+  const el = document.getElementById('jp-history');
+  if(!el) return;
+  if(!jpHistoryDocs.length){ el.innerHTML='<div class="empty-hint">기록이 없습니다</div>'; return; }
+  const totalPages = Math.ceil(jpHistoryDocs.length / JP_HISTORY_PER_PAGE);
+  const start = (jpHistoryPage-1)*JP_HISTORY_PER_PAGE;
+  const pageDocs = jpHistoryDocs.slice(start, start+JP_HISTORY_PER_PAGE);
+  const cards = pageDocs.map(d=>{
+    const s=d.data(), sid=d.id;
+    const modeLabel = s.mode==='pak'?'🔥 빡겜':'😊 즐겜';
+    const modeColor = s.mode==='pak'?'#ff5555':'#40c070';
+    const delBtn = isAdmin ? `<button onclick="jpDeleteSession('${sid}')" style="margin-left:auto;font-size:11px;padding:2px 8px;background:#3a1010;border:1px solid #6a2020;color:#ff6666;border-radius:4px;cursor:pointer;">🗑 삭제</button>` : '';
+    const memberTags = (s.members||[]).map(m=>`<span style="font-size:11px;padding:2px 5px;background:var(--bg3);border-radius:4px;border:1px solid var(--border);white-space:nowrap;">${m.realname||m.nick}</span>`).join('');
+    return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+        <span style="font-size:11px;color:var(--text-dim);">${s.date}</span>
+        <span style="font-size:12px;font-weight:700;">자랭파티${s.slot}</span>
+        <span style="font-size:11px;background:${modeColor}20;color:${modeColor};border:1px solid ${modeColor}44;padding:2px 8px;border-radius:10px;">${modeLabel}</span>
+        <span style="font-size:11px;color:var(--gold);font-weight:700;">${s.games}판 (+${s.pts}pt)</span>
+        ${delBtn}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;">${memberTags}</div>
+    </div>`;
+  }).join('');
+  let pagination = '';
+  if(totalPages > 1){
+    const btns = [];
+    for(let i=1;i<=totalPages;i++){
+      const active = i===jpHistoryPage;
+      btns.push(`<button onclick="jpHistoryGoPage(${i})" style="min-width:32px;padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:${active?'var(--red)':'var(--bg4)'};color:${active?'#fff':'var(--text)'};font-size:12px;cursor:pointer;">${i}</button>`);
+    }
+    pagination = `<div style="display:flex;gap:4px;justify-content:center;margin-top:8px;">${btns.join('')}</div>`;
+  }
+  el.innerHTML = cards + pagination;
+}
+
+window.jpHistoryGoPage = function(page){ jpHistoryPage=page; renderJpHistory(); };
+
+window.jpDeleteSession = async function(sid){
+  if(!confirm('이 자랭파티 기록을 삭제하시겠습니까?\n관련 자랭 기록도 함께 삭제됩니다.')) return;
+  try {
+    const recSnap = await getDocs(query(collection(db,'records'),where('jarPartySessionId','==',sid)));
+    for(const rd of recSnap.docs) await deleteDoc(doc(db,'records',rd.id));
+    await deleteDoc(doc(db,'jarPartySessions',sid));
+    showToast('삭제 완료');
+    await loadJpHistory();
   } catch(e){ showToast('삭제 실패: '+e.message); }
 };
 
