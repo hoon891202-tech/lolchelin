@@ -244,6 +244,7 @@ select.inp option{background:#1e1e1e;}
   <div class="nav-tab active" onclick="showPage('home',this)">🏠 홈</div>
   <div class="nav-tab" onclick="showPage('record',this)">📝 기록</div>
   <div class="nav-tab" onclick="showPage('stats',this)">📊 통계</div>
+  <div class="nav-tab" onclick="showPage('regs',this)">📜 운영 규정</div>
   <div class="nav-tab" onclick="showPage('rule',this)">📋 드래프트 룰북</div>
   <div class="nav-tab" onclick="showPage('apply',this)">✋ 드래프트 신청</div>
   <div class="nav-tab" onclick="showPage('draft',this)">👥 드래프트</div>
@@ -354,6 +355,27 @@ select.inp option{background:#1e1e1e;}
       </select>
     </div>
     <div id="stats-table" style="overflow-x:auto;"><div class="loading">불러오는 중...</div></div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 운영 규정 ══ -->
+<div id="page-regs" class="page">
+<div class="wrap">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">📜</span>
+      <span class="card-title">운영 규정집</span>
+      <span id="regs-edit-btn" style="margin-left:auto;cursor:pointer;font-size:11px;color:#ff7070;display:none;" onclick="toggleRegsEdit()">✏️ 수정</span>
+    </div>
+    <div id="regs-view" style="padding:16px;white-space:pre-wrap;font-size:13px;line-height:1.8;color:var(--text-mid);"></div>
+    <div id="regs-edit" style="display:none;padding:16px;">
+      <textarea id="regs-textarea" class="inp" style="width:100%;height:500px;resize:vertical;font-size:13px;line-height:1.7;"></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end;">
+        <button class="btn btn-ghost btn-sm" onclick="toggleRegsEdit()">취소</button>
+        <button class="btn btn-gold btn-sm" onclick="saveRegs()">저장</button>
+      </div>
+    </div>
   </div>
 </div>
 </div>
@@ -844,6 +866,7 @@ window.showPage = (id, el) => {
   if(id==='mypage') loadMyPage();
   if(id==='apply') loadApplyPage();
   if(id==='rule') loadRulePage();
+  if(id==='regs') loadRegsPage();
 };
 
 // ── UTILS ──
@@ -972,14 +995,14 @@ window.delRecord = async (id) => {
 function initStatsMonths(){
   const sel = document.getElementById('stats-month');
   const now = new Date();
+  const start = new Date(2026, 2, 1); // 2026년 3월부터
   sel.innerHTML = '';
-  for(let i=0;i<6;i++){
-    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-    if(d > now) continue;
+  let first = true;
+  for(let d = new Date(now.getFullYear(), now.getMonth(), 1); d >= start; d.setMonth(d.getMonth()-1)){
     const val = ym(d);
     const opt = document.createElement('option');
     opt.value = val; opt.textContent = `${d.getFullYear()}년 ${d.getMonth()+1}월`;
-    if(i===0) opt.selected=true;
+    if(first){ opt.selected=true; first=false; }
     sel.appendChild(opt);
   }
 }
@@ -1545,6 +1568,116 @@ window.savePtsModal = async () => {
     date: todayStr(), createdAt: new Date().toISOString()
   });
   closePtsModal(); showToast('점수가 수정됐습니다'); loadAdmin(); loadRanking();
+};
+
+// ── 운영 규정 ──
+const DEFAULT_REGS = `[규정] 롤슐랭 모임 운영 수칙
+1. 운영진 구성 및 선거
+1.1 운영진 구성
+* 롤슐랭은 1인의 모임장과 모임원 10명당 관리하는 운영진 1인을 둔다. (인원 산정 시 반올림)
+* 예시1) 모임원 34명 → 모임장 1인, 운영진 3인
+* 예시2) 모임원 35명 → 모임장 1인, 운영진 4인
+* 위 조항에도 불구하고 운영진은 최소 3인을 유지한다.
+
+1.2 운영진의 임기
+* 모임장의 임기는 12개월로 하며, 연임할 수 있다.
+* 운영진의 임기는 6개월로 하며, 연임할 수 있다.
+* 모임장 선거는 현 모임장 및 운영진이 출마하며, 운영진 선거와 모임장 선거가 겹칠 경우 신규 선출된 운영진은 모임장 선거에 출마할 수 없다.
+* 운영진 선거는 현 운영진 및 내전왕, 참여왕이 후보로 출마한다. (내전/참여왕 불출마 시 모임원 중 각 1인 추천 가능)
+* 운영진은 정모에 참여 할 수있어야 하며, 현 운영진과 오프라인에서 확인 된 사람들 중 선출한다.
+
+1.3 자격 박탈 및 해임
+* 누적 경고 2회 이상의 경우 즉시 자격이 박탈된다.
+* 모임원의 20%(모임장은 30%) 이상의 발의로 해임 투표를 진행하며, 투표자 과반수가 해임을 원할 경우 즉시 해임된다.
+* 투표의 방법은 (과반 투표이상 중 과반 찬성일 경우)
+* 해임 시 후임자는 2주 이내에 선출하며, 전임자의 남은 임기를 승계한다.
+* 모든 투표는 무기명으로 진행되며, 해임 발의자의 신상에 대한 비밀 유지를 원칙으로 한다.
+
+2. 모임 활동 규정
+2.1 모임원의 정의 및 의무
+* 모임원은 소모임 어플, 오픈톡방, 디스코드 3가지를 모두 참여하는 것을 원칙으로 한다.
+* 원활한 활동을 위해 월 2set 이상의 게임 참여를 유지해야 한다.
+* 내전: 3판 2선승제를 1set로 인정 (다회차 진행 시 횟수 누적 인정)
+* 자유랭크: 모임원들로만 구성된 5인 자랭의 경우 1판당 0.5set로 인정 (기록 제출 필수)
+* 일반/신속대전: 1판당 1/3set로 인정
+
+2.2 휴식기 신청
+* 1년에 2회 휴식기를 신청할 수 있으며, 매월 20일 이후 신청 시 익월부터 적용된다.
+* 휴식기 중에는 월 참여 기준을 충족하지 않아도 경고를 받지 않는다. (단, 신청 당월 즉시 사용은 불가)
+
+3. 게임 운영 세부 규칙
+3.1 내전 규정
+* 정기 내전: 매주 수요일 20시 기준 (시작 10분 전까지 디스코드 및 게임 접속 필수)
+* 정기 내전 인원 부족으로 진행되는 타 게임(칼바람 등)은 내전 참여로 인정한다.
+* 항시 내전: 최소 시작 4시간 전 운영진에게 신청해야 한다.
+* 노쇼 방지: 참석 투표 후 특별 사유 없이 시작 1시간 전 취소는 불가하며, 취소 시 본인이 대타를 구해야 한다.
+* 내전의 밸런스가 맞지 않을 경우 10인의 참여자 중 가장 티어가 낮은 1인에게 다음 두가지 혜택을 부여한다.
+  1. 노 벤권
+  2. 피어리스 면제권
+
+3.2 자유랭크 및 일반게임
+* 자유랭크 모집 시 '즐겜'과 '빡겜'을 구분하고 티어 제한을 설정할 수 있다.
+* 빡겜의 경우 모집자는 리플레이 다운로드를 원칙으로 하여 분쟁에 대비한다.
+* 낮은티어 빡겜 및 자랭 참여 시 부캐 참여 가능하며 다만 인게임 내 강한 오더 및 피드백은 제한된다.
+* 일반/신속대전에서 고의로 게임을 망치는 행위가 있을 경우 모집자는 해당 플레이어를 퇴출할 수 있다.
+* 퇴출 관련 분쟁 시 '문철(운영진 및 배심원 판결)'을 진행하며, 패배자는 경고 1회를 받는다.
+
+4. 오프라인 벙 및 기타
+4.1 오프라인 벙 개설
+* 모임원 4인 이상 오프라인 모임 시 반드시 '벙' 개설 요청을 해야 한다.
+* 최초 오프라인 벙(운영진 필참 벙)에 참석했던 인원만 벙을 개최할 수 있다.
+* 운영진은 원활한 진행을 위해 벙 단톡방에 모니터링(CCTV) 인원으로 참여한다.
+* 운영진에게 인지된 커플은 2인을 1인으로 간주한다.
+* 사전 인원을 미리 짜는 벙은 지양하며, 운영진의 확인을 받아야 한다.
+
+4.2 경고 및 패널티
+* 규칙 위반 시 경고 1회 부여 (지각은 0.5회).
+* 경고 3회 누적 시 1개월간 활동 정지(게임 제한). 정지 기간 중 타 모임 가입 시 영구 퇴출.
+* 경고는 분기별로 1회 면제되며(누적 불가), 이벤트로 획득한 면제권은 누적 가능하다.
+* 면제권 2매는 양도권 1매로 변경 가능하며, 무상 양도만 허용된다.
+* 금전거래, 모임내 영업, 불법내용 적발 시 강퇴 진행한다.
+
+4.3 이성 관련 문제
+* 모임 내 연애 후 결별 시 양측 모두 1개월 퇴출을 원칙으로 한다. (일방적 귀책 사유 입증 시 예외)
+* 원치 않는 개인 연락을 2회 이상 하거나 2인 이상의 제보가 있을 경우 '특별 경고'를 부여한다.
+* 특별 경고: 면제권 사용 불가, 누적 기간 6개월.`;
+
+let regsContent = null;
+let regsEditMode = false;
+
+async function loadRegsPage(){
+  const editBtn = document.getElementById('regs-edit-btn');
+  if(editBtn) editBtn.style.display = isAdmin ? 'inline' : 'none';
+  if(regsContent !== null){ renderRegs(); return; }
+  try {
+    const snap = await getDoc(doc(db,'settings','regulations'));
+    regsContent = snap.exists() ? snap.data().content : DEFAULT_REGS;
+  } catch(e){ regsContent = DEFAULT_REGS; }
+  renderRegs();
+}
+
+function renderRegs(){
+  document.getElementById('regs-view').textContent = regsContent;
+}
+
+window.toggleRegsEdit = () => {
+  regsEditMode = !regsEditMode;
+  document.getElementById('regs-view').style.display = regsEditMode ? 'none' : 'block';
+  document.getElementById('regs-edit').style.display = regsEditMode ? 'block' : 'none';
+  document.getElementById('regs-edit-btn').textContent = regsEditMode ? '✕ 닫기' : '✏️ 수정';
+  if(regsEditMode) document.getElementById('regs-textarea').value = regsContent;
+};
+
+window.saveRegs = async () => {
+  const content = document.getElementById('regs-textarea').value;
+  await setDoc(doc(db,'settings','regulations'), { content });
+  regsContent = content;
+  regsEditMode = false;
+  document.getElementById('regs-view').style.display = 'block';
+  document.getElementById('regs-edit').style.display = 'none';
+  document.getElementById('regs-edit-btn').textContent = '✏️ 수정';
+  renderRegs();
+  showToast('운영 규정이 저장됐습니다 ✅');
 };
 
 // ── RULE SETTINGS ──
