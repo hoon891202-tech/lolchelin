@@ -309,14 +309,14 @@ select.inp option{background:#1e1e1e;}
 <div class="wrap">
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
     <div class="card">
-      <div class="card-header"><span class="card-icon">⚔️</span><span class="card-title">내전 1</span><span id="nj1-cnt" class="card-note">0명</span></div>
+      <div class="card-header"><span class="card-icon">⚔️</span><span class="card-title">내전 1</span><span id="nj1-cnt" class="card-note">0명</span><button id="nj1-reset-btn" onclick="njClearApply(1)" style="display:none;margin-left:auto;font-size:11px;padding:2px 8px;background:#3a1010;border:1px solid #6a2020;color:#ff6666;border-radius:4px;cursor:pointer;">🗑 신청 초기화</button></div>
       <div style="padding:12px;display:flex;flex-direction:column;gap:8px;">
         <button id="nj1-btn" class="btn btn-red btn-sm" onclick="njToggleApply(1)">신청하기</button>
         <div id="nj1-list"></div>
       </div>
     </div>
     <div class="card">
-      <div class="card-header"><span class="card-icon">⚔️</span><span class="card-title">내전 2</span><span id="nj2-cnt" class="card-note">0명</span></div>
+      <div class="card-header"><span class="card-icon">⚔️</span><span class="card-title">내전 2</span><span id="nj2-cnt" class="card-note">0명</span><button id="nj2-reset-btn" onclick="njClearApply(2)" style="display:none;margin-left:auto;font-size:11px;padding:2px 8px;background:#3a1010;border:1px solid #6a2020;color:#ff6666;border-radius:4px;cursor:pointer;">🗑 신청 초기화</button></div>
       <div style="padding:12px;display:flex;flex-direction:column;gap:8px;">
         <button id="nj2-btn" class="btn btn-red btn-sm" onclick="njToggleApply(2)">신청하기</button>
         <div id="nj2-list"></div>
@@ -1854,7 +1854,11 @@ let njPlayers = {1:[], 2:[]};
 let njDrag = null;
 
 async function loadNaejeonPage(){
-  if(isAdmin) document.getElementById('nj-admin-section').style.display = 'block';
+  if(isAdmin){
+    document.getElementById('nj-admin-section').style.display = 'block';
+    document.getElementById('nj1-reset-btn').style.display = 'inline-block';
+    document.getElementById('nj2-reset-btn').style.display = 'inline-block';
+  }
   if(isAdmin){ renderNjTeamBuilder(1); renderNjTeamBuilder(2); }
   await njLoadApplyStatus();
   await loadNjHistory();
@@ -1907,7 +1911,7 @@ function renderNjTeamBuilder(game){
   el.innerHTML = `
     <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
       <button class="btn btn-red btn-sm" onclick="njLoadTeam(${game})">📥 신청자 불러오기</button>
-      <button class="btn btn-ghost btn-sm" onclick="njClearApply(${game})">🗑️ 신청 초기화</button>
+      <button class="btn btn-ghost btn-sm" onclick="njResetArrange(${game})">🔄 배치 초기화</button>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:start;">
       <div>
@@ -2004,6 +2008,12 @@ window.njLoadTeam = async (game) => {
   njPlayers[game] = [...njPlayers[game], ...newPlayers];
   renderNjPlayers(game);
   showToast(newPlayers.length ? `신규 ${newPlayers.length}명 추가됐습니다` : '최신 상태로 동기화됐습니다');
+};
+
+window.njResetArrange = (game) => {
+  njPlayers[game] = njPlayers[game].map(p=>({...p, loc:'pool'}));
+  renderNjPlayers(game);
+  showToast('배치가 초기화됐습니다');
 };
 
 window.njClearApply = async (game) => {
