@@ -1991,13 +1991,19 @@ window.njDrop = (e, game, zone) => {
 
 window.njLoadTeam = async (game) => {
   const snap = await getDocs(collection(db,'naejeonApply'));
+  const activeUids = new Set();
+  const allApplicants = {};
+  snap.forEach(d=>{ const u=d.data(); if(u[`game${game}`]){ activeUids.add(d.id); allApplicants[d.id]=u; } });
+  // 취소한 사람 제거 (배치된 자리에서도)
+  njPlayers[game] = njPlayers[game].filter(p=>activeUids.has(p.uid));
+  // 새 신청자 추가
   const existingUids = new Set(njPlayers[game].map(p=>p.uid));
   const newPlayers = [];
-  snap.forEach(d=>{ const u=d.data(); if(u[`game${game}`] && !existingUids.has(d.id)) newPlayers.push({uid:d.id,nick:u.nick,realname:u.realname||'',tier:u.tier,main:u.main||'',sub:u.sub||'',loc:'pool'}); });
+  activeUids.forEach(uid=>{ if(!existingUids.has(uid)){ const u=allApplicants[uid]; newPlayers.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,main:u.main||'',sub:u.sub||'',loc:'pool'}); } });
   if(!njPlayers[game].length && !newPlayers.length){ showToast('신청자가 없습니다'); return; }
   njPlayers[game] = [...njPlayers[game], ...newPlayers];
   renderNjPlayers(game);
-  showToast(newPlayers.length ? `신규 ${newPlayers.length}명 추가됐습니다` : '새로운 신청자가 없습니다');
+  showToast(newPlayers.length ? `신규 ${newPlayers.length}명 추가됐습니다` : '최신 상태로 동기화됐습니다');
 };
 
 window.njClearApply = async (game) => {
