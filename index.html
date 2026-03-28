@@ -1212,7 +1212,7 @@ window.applyRest = async () => {
   }
   if(now.getDate() < 20){ showToast('휴식기 신청은 매월 20일 이후에 가능합니다'); document.getElementById('rest-modal').style.display='none'; return; }
   const nextMonth = new Date(now.getFullYear(), now.getMonth()+1, 1);
-  const applyFrom = nextMonth.toISOString().slice(0,7);
+  const applyFrom = ym(nextMonth);
   await updateDoc(doc(db,'users',currentUser.uid),{
     restCount: restCount+1,
     restUsedThisPeriod: usedThisPeriod+1,
@@ -1514,7 +1514,7 @@ window.toggleRest = async (uid, nick, isResting) => {
   } else {
     const now = new Date();
     const nextMonth = new Date(now.getFullYear(), now.getMonth()+1, 1);
-    const applyFrom = nextMonth.toISOString().slice(0,7);
+    const applyFrom = ym(nextMonth);
     if(!confirm(`${nick}님을 ${applyFrom}부터 휴식기로 처리하시겠습니까?`)) return;
     const snap = await getDoc(doc(db,'users',uid));
     const restCount = snap.exists()?(snap.data().restCount||0):0;
