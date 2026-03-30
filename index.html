@@ -203,6 +203,28 @@ select.inp option{background:#1e1e1e;}
         <label for="remember-me" style="font-size:12px;color:var(--text-dim);cursor:pointer;">로그인 상태 유지</label>
       </div>
       <button class="auth-btn" onclick="doLogin()">로그인</button>
+      <div style="display:flex;justify-content:center;gap:12px;margin-top:10px;">
+        <span style="font-size:11px;color:var(--text-dim);cursor:pointer;text-decoration:underline;" onclick="showFindPanel('id')">아이디 찾기</span>
+        <span style="font-size:11px;color:var(--text-dim);">|</span>
+        <span style="font-size:11px;color:var(--text-dim);cursor:pointer;text-decoration:underline;" onclick="showFindPanel('pw')">비밀번호 찾기</span>
+      </div>
+    </div>
+    <div id="auth-find" style="display:none;margin-top:10px;padding:14px;background:var(--bg3);border-radius:8px;border:1px solid var(--border);">
+      <div id="find-id-section">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">이름 또는 닉네임으로 찾기</div>
+        <input id="find-id-input" class="auth-field" placeholder="이름 또는 닉네임" style="margin-bottom:8px;">
+        <button class="auth-btn" style="padding:9px;" onclick="findMyId()">아이디 찾기</button>
+        <div id="find-id-result" style="margin-top:8px;font-size:12px;line-height:1.8;"></div>
+      </div>
+      <div id="find-pw-section" style="display:none;">
+        <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">가입한 이메일로 재설정 링크를 보내드립니다</div>
+        <input id="find-pw-input" class="auth-field" type="email" placeholder="이메일" style="margin-bottom:8px;">
+        <button class="auth-btn" style="padding:9px;" onclick="findMyPw()">재설정 메일 발송</button>
+        <div id="find-pw-result" style="margin-top:8px;font-size:12px;line-height:1.8;"></div>
+      </div>
+      <div style="text-align:center;margin-top:10px;">
+        <span style="font-size:11px;color:var(--text-dim);cursor:pointer;" onclick="document.getElementById('auth-find').style.display='none'">닫기</span>
+      </div>
     </div>
     <div id="auth-signup" style="display:none">
       <input id="signup-nick" class="auth-field" type="text" placeholder="닉네임 (소환사명)">
@@ -621,6 +643,17 @@ select.inp option{background:#1e1e1e;}
       </div>
       <div id="my-rest-status" style="margin-bottom:12px;"></div>
       <div id="my-rest-btns" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><span class="card-icon">🚪</span><span class="card-title">탈퇴</span></div>
+    <div style="padding:14px;display:flex;flex-direction:column;gap:10px;">
+      <div style="font-size:12px;color:var(--text-dim);line-height:1.8;">
+        탈퇴 시 계정이 완전히 삭제되며 복구할 수 없습니다.<br>
+        기록 데이터는 유지됩니다.
+      </div>
+      <button class="btn btn-sm" style="background:#3a1010;border:1px solid #6a2020;color:#ff6666;width:100%;" onclick="withdrawMyAccount()">탈퇴하기</button>
     </div>
   </div>
 </div>
@@ -1243,6 +1276,78 @@ window.changeMyPw = async () => {
   } catch(e){
     if(e.code==='auth/requires-recent-login') showToast('보안을 위해 재로그인 후 변경해주세요');
     else showToast('변경 실패: '+e.message);
+  }
+};
+
+window.withdrawMyAccount = async () => {
+  if(!currentUser) return;
+  if(!confirm('정말 탈퇴하시겠습니까?\n계정이 완전히 삭제되며 복구할 수 없습니다.')) return;
+  try {
+    const { deleteUser } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+    await updateDoc(doc(db,'users',currentUser.uid),{active:false});
+    await deleteUser(currentUser);
+    showToast('탈퇴가 완료됐습니다');
+  } catch(e){
+    if(e.code==='auth/requires-recent-login') showToast('보안을 위해 재로그인 후 다시 시도해주세요');
+    else showToast('탈퇴 실패: '+e.message);
+  }
+};
+
+window.showFindPanel = (type) => {
+  const panel = document.getElementById('auth-find');
+  const idSec = document.getElementById('find-id-section');
+  const pwSec = document.getElementById('find-pw-section');
+  const isCurrentlyShown = panel.style.display !== 'none';
+  const isSameType = (type==='id' && idSec.style.display!=='none') || (type==='pw' && pwSec.style.display!=='none');
+  if(isCurrentlyShown && isSameType){ panel.style.display='none'; return; }
+  panel.style.display = 'block';
+  idSec.style.display = type==='id' ? 'block' : 'none';
+  pwSec.style.display = type==='pw' ? 'block' : 'none';
+  document.getElementById('find-id-result').textContent = '';
+  document.getElementById('find-pw-result').textContent = '';
+};
+
+window.findMyId = async () => {
+  const q = document.getElementById('find-id-input').value.trim();
+  const res = document.getElementById('find-id-result');
+  if(!q){ res.textContent = '이름 또는 닉네임을 입력해주세요.'; return; }
+  res.textContent = '조회 중...';
+  try {
+    const { collection: col, query, where, getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
+    const byName = await getDocs(query(col(db,'users'), where('realname','==',q)));
+    const byNick = await getDocs(query(col(db,'users'), where('nick','==',q)));
+    const found = [];
+    const seen = new Set();
+    byName.forEach(d=>{ if(!seen.has(d.id)){ seen.add(d.id); found.push(d.data()); } });
+    byNick.forEach(d=>{ if(!seen.has(d.id)){ seen.add(d.id); found.push(d.data()); } });
+    if(!found.length){ res.innerHTML = '<span style="color:#ff6b6b;">일치하는 회원을 찾을 수 없습니다.</span>'; return; }
+    res.innerHTML = found.map(u => {
+      const email = u.email || '';
+      const parts = email.split('@');
+      const masked = parts.length===2
+        ? parts[0].slice(0,2) + '*'.repeat(Math.max(1,parts[0].length-2)) + '@' + parts[1]
+        : '(이메일 없음)';
+      return `<span style="color:var(--acc);">${u.nick || u.realname}</span>님의 이메일: <b>${masked}</b>`;
+    }).join('<br>');
+  } catch(e){
+    res.textContent = '조회 실패: ' + e.message;
+  }
+};
+
+window.findMyPw = async () => {
+  const email = document.getElementById('find-pw-input').value.trim();
+  const res = document.getElementById('find-pw-result');
+  if(!email){ res.textContent = '이메일을 입력해주세요.'; return; }
+  res.textContent = '발송 중...';
+  try {
+    const { sendPasswordResetEmail } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+    await sendPasswordResetEmail(auth, email);
+    res.innerHTML = '<span style="color:#69db7c;">재설정 링크를 발송했습니다.<br>스팸함도 확인해주세요.</span>';
+    document.getElementById('find-pw-input').value = '';
+  } catch(e){
+    if(e.code==='auth/user-not-found') res.innerHTML = '<span style="color:#ff6b6b;">등록된 이메일이 아닙니다.</span>';
+    else if(e.code==='auth/invalid-email') res.innerHTML = '<span style="color:#ff6b6b;">올바른 이메일 형식이 아닙니다.</span>';
+    else res.textContent = '발송 실패: ' + e.message;
   }
 };
 
