@@ -650,8 +650,7 @@ select.inp option{background:#1e1e1e;}
     <div class="card-header"><span class="card-icon">🚪</span><span class="card-title">탈퇴</span></div>
     <div style="padding:14px;display:flex;flex-direction:column;gap:10px;">
       <div style="font-size:12px;color:var(--text-dim);line-height:1.8;">
-        탈퇴 시 계정이 완전히 삭제되며 복구할 수 없습니다.<br>
-        기록 데이터는 유지됩니다.
+        탈퇴 시 계정 및 모든 기록이 완전히 삭제되며 복구할 수 없습니다.
       </div>
       <button class="btn btn-sm" style="background:#3a1010;border:1px solid #6a2020;color:#ff6666;width:100%;" onclick="withdrawMyAccount()">탈퇴하기</button>
     </div>
@@ -1281,10 +1280,20 @@ window.changeMyPw = async () => {
 
 window.withdrawMyAccount = async () => {
   if(!currentUser) return;
-  if(!confirm('정말 탈퇴하시겠습니까?\n계정이 완전히 삭제되며 복구할 수 없습니다.')) return;
+  if(!confirm('정말 탈퇴하시겠습니까?\n계정 및 모든 기록이 완전히 삭제되며 복구할 수 없습니다.')) return;
   try {
     const { deleteUser } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
-    await updateDoc(doc(db,'users',currentUser.uid),{active:false});
+    const uid = currentUser.uid;
+    // records 전체 삭제
+    const recSnap = await getDocs(query(collection(db,'records'), where('uid','==',uid)));
+    await Promise.all(recSnap.docs.map(d => deleteDoc(doc(db,'records',d.id))));
+    // 내전 신청 삭제
+    const applyRef = doc(db,'naejeonApply',uid);
+    const applySnap = await getDoc(applyRef);
+    if(applySnap.exists()) await deleteDoc(applyRef);
+    // users 문서 삭제
+    await deleteDoc(doc(db,'users',uid));
+    // Auth 계정 삭제
     await deleteUser(currentUser);
     showToast('탈퇴가 완료됐습니다');
   } catch(e){
