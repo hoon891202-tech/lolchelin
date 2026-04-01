@@ -1317,14 +1317,13 @@ window.showFindPanel = (type) => {
 };
 
 window.findMyId = async () => {
-  const q = document.getElementById('find-id-input').value.trim();
+  const keyword = document.getElementById('find-id-input').value.trim();
   const res = document.getElementById('find-id-result');
-  if(!q){ res.textContent = '이름 또는 닉네임을 입력해주세요.'; return; }
+  if(!keyword){ res.textContent = '이름 또는 닉네임을 입력해주세요.'; return; }
   res.textContent = '조회 중...';
   try {
-    const { collection: col, query, where, getDocs } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-    const byName = await getDocs(query(col(db,'users'), where('realname','==',q)));
-    const byNick = await getDocs(query(col(db,'users'), where('nick','==',q)));
+    const byName = await getDocs(query(collection(db,'users'), where('realname','==',keyword)));
+    const byNick = await getDocs(query(collection(db,'users'), where('nick','==',keyword)));
     const found = [];
     const seen = new Set();
     byName.forEach(d=>{ if(!seen.has(d.id)){ seen.add(d.id); found.push(d.data()); } });
