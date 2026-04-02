@@ -1654,8 +1654,13 @@ window.toggleLtDetail = (uid) => {
   if(el) el.style.display = el.style.display==='none'?'':'none';
 };
 
-window.openLtExpenseModal = () => {
-  const userList = Object.entries(ltUsers);
+window.openLtExpenseModal = async () => {
+  // 참석자만 불러오기
+  const attSnap = await getDocs(collection(db,'lightnings',currentLtId,'attendees'));
+  const attendeeUids = attSnap.docs.filter(d=>d.data().attending).map(d=>d.id);
+  // 참석자가 없으면 전체 표시
+  const targetUids = attendeeUids.length ? attendeeUids : Object.keys(ltUsers);
+  const userList = targetUids.map(uid => [uid, ltUsers[uid]]).filter(([,u])=>u);
   const payerOpts = userList.map(([uid,u]) =>
     `<option value="${uid}" ${uid===currentUser.uid?'selected':''}>${u.nick} (${u.realname||''})</option>`).join('');
   const userOpts = userList.map(([uid,u]) =>
