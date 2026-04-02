@@ -1381,10 +1381,17 @@ window.filterLt = (type, el) => {
   renderLightnings();
 };
 
+function ltEffectiveStatus(t) {
+  if(t.status === 'completed') return 'completed';
+  const end = t.dateEnd || t.dateStart;
+  if(end && end < todayStr()) return 'completed';
+  return 'planned';
+}
+
 function renderLightnings() {
   const list = document.getElementById('lt-list');
   let items = allLightnings;
-  if(ltFilter !== 'all') items = items.filter(t => t.status === ltFilter);
+  if(ltFilter !== 'all') items = items.filter(t => ltEffectiveStatus(t) === ltFilter);
   if(!items.length) {
     list.innerHTML = `<div style="text-align:center;padding:40px 0;color:var(--text-dim);">⚡ 번개 일정이 없습니다.</div>`;
     return;
@@ -1394,7 +1401,7 @@ function renderLightnings() {
       <div style="padding:14px;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;">
           <div style="flex:1;">
-            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;${t.status==='planned'?'background:#1a2a4a;color:#88aaff;':'background:#1a3a1a;color:#88cc88;'}">${t.status==='planned'?'📅 예정':'✅ 완료'}</span>
+            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;${ltEffectiveStatus(t)==='planned'?'background:#1a2a4a;color:#88aaff;':'background:#1a3a1a;color:#88cc88;'}">${ltEffectiveStatus(t)==='planned'?'📅 예정':'✅ 완료'}</span>
             <div style="font-size:15px;font-weight:800;margin-top:8px;">${t.title||''}</div>
             <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">📍 ${t.location||'-'} ${t.naverMapUrl?`<a href="${t.naverMapUrl}" target="_blank" rel="noopener" style="color:#4fc3f7;font-size:11px;text-decoration:none;" onclick="event.stopPropagation()">🗺️ 지도</a>`:''}</div>
             <div style="font-size:12px;color:var(--text-dim);">📅 ${t.dateStart||''}${t.dateEnd&&t.dateEnd!==t.dateStart?' ~ '+t.dateEnd:''}</div>
@@ -1427,6 +1434,7 @@ window.showLightningDetail = async (id) => {
             </div>
           </div>
           ${isAdmin?`<div style="display:flex;flex-direction:column;gap:6px;margin-left:10px;">
+            ${lt.status!=='completed'&&ltEffectiveStatus(lt)==='completed'?`<button class="btn btn-sm" style="background:#1a3a1a;border:1px solid #4a7a4a;color:#88cc88;" onclick="completeLt('${id}')">✅ 완료 저장</button>`:''}
             <button class="btn btn-sm" style="background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);" onclick="openLtModal('${id}')">수정</button>
             <button class="btn btn-sm" style="background:#3a1010;border:1px solid #6a2020;color:#ff6666;" onclick="deleteLt('${id}')">삭제</button>
           </div>`:''}
@@ -1798,6 +1806,15 @@ window.saveLt = async (id) => {
     renderLightnings();
   }
   showToast(id?'수정됐습니다':'번개가 추가됐습니다 ⚡');
+};
+
+window.completeLt = async (id) => {
+  await updateDoc(doc(db,'lightnings',id),{status:'completed'});
+  const idx = allLightnings.findIndex(x=>x.id===id);
+  if(idx>-1) allLightnings[idx].status = 'completed';
+  renderLightnings();
+  showLightningDetail(id);
+  showToast('완료로 저장됐습니다 ✅');
 };
 
 window.deleteLt = async (id) => {
