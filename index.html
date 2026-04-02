@@ -1661,8 +1661,9 @@ window.openLtExpenseModal = async () => {
   // 참석자가 없으면 전체 표시
   const targetUids = attendeeUids.length ? attendeeUids : Object.keys(ltUsers);
   const userList = targetUids.map(uid => [uid, ltUsers[uid]]).filter(([,u])=>u);
+  const defaultPayer = targetUids.includes(currentUser.uid) ? currentUser.uid : (targetUids[0]||'');
   const payerOpts = userList.map(([uid,u]) =>
-    `<option value="${uid}" ${uid===currentUser.uid?'selected':''}>${u.nick} (${u.realname||''})</option>`).join('');
+    `<option value="${uid}" ${uid===defaultPayer?'selected':''}>${u.nick} (${u.realname||''})</option>`).join('');
   const userOpts = userList.map(([uid,u]) =>
     `<label style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer;">
       <input type="checkbox" class="lt-exp-chk" value="${uid}" checked>
