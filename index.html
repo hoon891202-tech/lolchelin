@@ -1396,7 +1396,7 @@ function renderLightnings() {
           <div style="flex:1;">
             <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;${t.status==='planned'?'background:#1a2a4a;color:#88aaff;':'background:#1a3a1a;color:#88cc88;'}">${t.status==='planned'?'📅 예정':'✅ 완료'}</span>
             <div style="font-size:15px;font-weight:800;margin-top:8px;">${t.title||''}</div>
-            <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">📍 ${t.location||'-'}</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">📍 ${t.location||'-'} ${t.naverMapUrl?`<a href="${t.naverMapUrl}" target="_blank" rel="noopener" style="color:#4fc3f7;font-size:11px;text-decoration:none;" onclick="event.stopPropagation()">🗺️ 지도</a>`:''}</div>
             <div style="font-size:12px;color:var(--text-dim);">📅 ${t.dateStart||''}${t.dateEnd&&t.dateEnd!==t.dateStart?' ~ '+t.dateEnd:''}</div>
             ${t.chatUrl?`<div style="font-size:12px;margin-top:4px;"><a href="${t.chatUrl}" target="_blank" rel="noopener" style="color:#f0b040;text-decoration:none;" onclick="event.stopPropagation()">💬 오픈채팅 참여</a></div>`:''}
           </div>
@@ -1420,7 +1420,7 @@ window.showLightningDetail = async (id) => {
             <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;${lt.status==='planned'?'background:#1a2a4a;color:#88aaff;':'background:#1a3a1a;color:#88cc88;'}">${lt.status==='planned'?'📅 예정':'✅ 완료'}</span>
             <div style="font-size:20px;font-weight:800;margin-top:8px;">${lt.title||''}</div>
             <div style="margin-top:10px;display:flex;flex-direction:column;gap:5px;">
-              <div style="font-size:13px;">📍 <strong>${lt.location||'-'}</strong></div>
+              <div style="font-size:13px;">📍 <strong>${lt.location||'-'}</strong> ${lt.naverMapUrl?`<a href="${lt.naverMapUrl}" target="_blank" rel="noopener" style="color:#4fc3f7;font-size:12px;text-decoration:none;margin-left:4px;">🗺️ 네이버 지도</a>`:''}</div>
               <div style="font-size:13px;">📅 ${lt.dateStart||''}${lt.dateEnd&&lt.dateEnd!==lt.dateStart?' ~ '+lt.dateEnd:''}</div>
               ${lt.chatUrl?`<div style="font-size:13px;"><a href="${lt.chatUrl}" target="_blank" rel="noopener" style="color:#f0b040;font-weight:700;text-decoration:none;">💬 오픈채팅 참여하기 →</a></div>`:''}
               ${lt.description?`<div style="font-size:13px;color:var(--text-mid);line-height:1.7;margin-top:6px;white-space:pre-wrap;">${lt.description}</div>`:''}
@@ -1761,6 +1761,7 @@ window.openLtModal = (id='') => {
         <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">날짜 *</label><input class="inp" id="lt-mstart" type="date" value="${lt?.dateStart||''}"></div>
         <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">종료일 (선택)</label><input class="inp" id="lt-mend" type="date" value="${lt?.dateEnd||''}"></div>
         <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">장소</label><input class="inp" id="lt-mloc" value="${lt?.location||''}" placeholder="예: 홍대 볼링장"></div>
+        <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">네이버 지도 링크 (선택)</label><input class="inp" id="lt-mmap" type="url" value="${lt?.naverMapUrl||''}" placeholder="https://map.naver.com/..."></div>
         <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">카카오 오픈채팅 링크 (선택)</label><input class="inp" id="lt-mchat" type="url" value="${lt?.chatUrl||''}" placeholder="https://open.kakao.com/..."></div>
         <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">설명</label><textarea class="inp" id="lt-mdesc" rows="3" style="resize:vertical;min-height:70px;">${lt?.description||''}</textarea></div>
         <div style="margin-bottom:16px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">상태</label>
@@ -1778,11 +1779,12 @@ window.saveLt = async (id) => {
   const dateStart=document.getElementById('lt-mstart').value;
   const dateEnd=document.getElementById('lt-mend').value;
   const location=document.getElementById('lt-mloc').value.trim();
+  const naverMapUrl=document.getElementById('lt-mmap').value.trim();
   const chatUrl=document.getElementById('lt-mchat').value.trim();
   const description=document.getElementById('lt-mdesc').value.trim();
   const status=document.getElementById('lt-mstatus').value;
   if(!title||!dateStart){ showToast('제목과 날짜는 필수입니다'); return; }
-  const data={title,dateStart,dateEnd,location,chatUrl,description,status};
+  const data={title,dateStart,dateEnd,location,naverMapUrl,chatUrl,description,status};
   if(id){
     await updateDoc(doc(db,'lightnings',id),data);
     const idx=allLightnings.findIndex(x=>x.id===id);
