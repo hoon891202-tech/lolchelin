@@ -1596,36 +1596,26 @@ async function loadLtExpenses(id) {
             </div>`).join('<div style="height:1px;background:var(--border);"></div>')}
         </div>
       </div>`;
-    // 잔액 계산
-    const balance = {}, personDetail = {};
+    // 경비별 직접 정산 (상계 없음: 낸 사람 제외 참여자 각자 → 낸 사람)
+    const transferMap = {}, personDetail = {};
     expenses.forEach(e => {
       if(!e.participants?.length) return;
       const payer = e.paidBy||e.addedBy;
       const share = Math.ceil(e.amount / e.participants.length);
       const cat = e.category||'🛒 기타';
-      balance[payer] = (balance[payer]||0) + e.amount;
       e.participants.forEach(uid => {
-        balance[uid] = (balance[uid]||0) - share;
         if(!personDetail[uid]) personDetail[uid] = [];
         personDetail[uid].push({title:e.title, cat, share, payer});
+        if(uid === payer) return; // 낸 사람은 자기 자신에게 보낼 필요 없음
+        const key = `${uid}_${payer}`;
+        transferMap[key] = (transferMap[key]||0) + share;
       });
     });
+    const transactions = Object.entries(transferMap)
+      .map(([key, amount]) => { const [from, to] = key.split('_'); return {from, to, amount}; })
+      .filter(t => t.amount > 0);
     const catTotal = {};
     expenses.forEach(e => { const c=e.category||'🛒 기타'; catTotal[c]=(catTotal[c]||0)+e.amount; });
-    function ltSimplify(bal) {
-      const pos = Object.entries(bal).filter(([,v])=>v>50).sort((a,b)=>b[1]-a[1]).map(([uid,v])=>({uid,v}));
-      const neg = Object.entries(bal).filter(([,v])=>v<-50).sort((a,b)=>a[1]-b[1]).map(([uid,v])=>({uid,v:-v}));
-      const txns = []; let i=0, j=0;
-      while(i<pos.length && j<neg.length) {
-        const t=Math.min(pos[i].v,neg[j].v);
-        txns.push({from:neg[j].uid,to:pos[i].uid,amount:Math.round(t)});
-        pos[i].v-=t; neg[j].v-=t;
-        if(pos[i].v<50) i++;
-        if(neg[j].v<50) j++;
-      }
-      return txns;
-    }
-    const transactions = ltSimplify({...balance});
     const remaining = transactions.filter(t => !completedMap[`${t.from}_${t.to}`]);
     const completed = transactions.filter(t => completedMap[`${t.from}_${t.to}`]);
     const remainAmt = remaining.reduce((s,t)=>s+t.amount,0);
