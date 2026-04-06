@@ -1601,7 +1601,7 @@ async function loadLtExpenses(id) {
     expenses.forEach(e => {
       if(!e.participants?.length) return;
       const payer = e.paidBy||e.addedBy;
-      const share = Math.round(e.amount / e.participants.length);
+      const share = Math.ceil(e.amount / e.participants.length);
       const cat = e.category||'🛒 기타';
       balance[payer] = (balance[payer]||0) + e.amount;
       e.participants.forEach(uid => {
@@ -1671,34 +1671,34 @@ async function loadLtExpenses(id) {
                       const isDone = !!completedMap[`${t.from}_${t.to}`];
                       const rec = completedMap[`${t.from}_${t.to}`];
                       const can = t.from===currentUser.uid||t.to===currentUser.uid||isAdmin;
-                      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);${isDone?'opacity:0.45;':''}">
-                        <span style="font-size:16px;">📤</span>
-                        <div style="flex:1;">
-                          <span style="font-size:13px;font-weight:600;">${ltUsers[t.to]?.nick||t.to}</span>
-                          <span style="font-size:12px;color:var(--text-dim);">에게</span>
-                          <span style="font-size:14px;font-weight:800;color:${isDone?'#888':'#ff8888'};margin-left:6px;${isDone?'text-decoration:line-through;':''}">${ltWon(t.amount)}</span>
+                      const toU = ltUsers[t.to]||{};
+                      return `<div style="padding:7px 0;border-bottom:1px solid var(--border);${isDone?'opacity:0.45;':''}">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                          <span style="font-size:16px;">📤</span>
+                          <div style="flex:1;">
+                            <span style="font-size:13px;font-weight:600;">${toU.nick||t.to}</span>
+                            <span style="font-size:12px;color:var(--text-dim);">에게</span>
+                            <span style="font-size:14px;font-weight:800;color:${isDone?'#888':'#ff8888'};margin-left:6px;${isDone?'text-decoration:line-through;':''}">${ltWon(t.amount)}</span>
+                          </div>
+                          ${isDone
+                            ? `<span style="font-size:10px;font-weight:700;background:#1a3a1a;color:#88cc88;padding:2px 6px;border-radius:8px;">✅ 완료</span>
+                               ${isAdmin?`<button class="btn btn-sm" style="background:var(--bg4);border:1px solid var(--border);color:var(--text-dim);" onclick="undoLtSettleDone('${id}','${rec.id}')">취소</button>`:''}`
+                            : can?`<button class="btn btn-sm" style="background:#1a3a1a;border:1px solid #4a7a4a;color:#88cc88;" onclick="markLtSettleDone('${id}','${t.from}','${t.to}',${t.amount})">✓ 완료</button>`:''}
                         </div>
-                        ${isDone
-                          ? `<span style="font-size:10px;font-weight:700;background:#1a3a1a;color:#88cc88;padding:2px 6px;border-radius:8px;">✅ 완료</span>
-                             ${isAdmin?`<button class="btn btn-sm" style="background:var(--bg4);border:1px solid var(--border);color:var(--text-dim);" onclick="undoLtSettleDone('${id}','${rec.id}')">취소</button>`:''}`
-                          : can?`<button class="btn btn-sm" style="background:#1a3a1a;border:1px solid #4a7a4a;color:#88cc88;" onclick="markLtSettleDone('${id}','${t.from}','${t.to}',${t.amount})">✓ 완료</button>`:''}
+                        ${toU.accountNum?`<div style="margin-top:4px;margin-left:28px;font-size:11px;color:var(--text-dim);background:var(--bg3);padding:4px 8px;border-radius:6px;display:inline-block;">🏦 ${toU.bankName||''} <span style="font-family:monospace;letter-spacing:1px;">${toU.accountNum}</span>${toU.accountHolder?` · ${toU.accountHolder}`:''}</div>`:''}
                       </div>`;
                     }).join('')}
                     ${receives.map(t => {
                       const isDone = !!completedMap[`${t.from}_${t.to}`];
                       const fromU = ltUsers[t.from]||{};
-                      const hasAccount = fromU.accountNum;
-                      return `<div style="padding:7px 0;border-bottom:1px solid var(--border);${isDone?'opacity:0.45;':''}">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                          <span style="font-size:16px;">📥</span>
-                          <div style="flex:1;">
-                            <span style="font-size:13px;font-weight:600;">${fromU.nick||t.from}</span>
-                            <span style="font-size:12px;color:var(--text-dim);">에게서</span>
-                            <span style="font-size:14px;font-weight:800;color:${isDone?'#888':'#88cc88'};margin-left:6px;${isDone?'text-decoration:line-through;':''}">${ltWon(t.amount)}</span>
-                          </div>
-                          ${isDone?`<span style="font-size:10px;font-weight:700;background:#1a3a1a;color:#88cc88;padding:2px 6px;border-radius:8px;">✅ 완료</span>`:''}
+                      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);${isDone?'opacity:0.45;':''}">
+                        <span style="font-size:16px;">📥</span>
+                        <div style="flex:1;">
+                          <span style="font-size:13px;font-weight:600;">${fromU.nick||t.from}</span>
+                          <span style="font-size:12px;color:var(--text-dim);">에게서</span>
+                          <span style="font-size:14px;font-weight:800;color:${isDone?'#888':'#88cc88'};margin-left:6px;${isDone?'text-decoration:line-through;':''}">${ltWon(t.amount)}</span>
                         </div>
-                        ${hasAccount?`<div style="margin-top:4px;margin-left:28px;font-size:11px;color:var(--text-dim);background:var(--bg3);padding:4px 8px;border-radius:6px;display:inline-block;">🏦 ${fromU.bankName||''} <span style="font-family:monospace;letter-spacing:1px;">${fromU.accountNum}</span>${fromU.accountHolder?` · ${fromU.accountHolder}`:''}</div>`:''}
+                        ${isDone?`<span style="font-size:10px;font-weight:700;background:#1a3a1a;color:#88cc88;padding:2px 6px;border-radius:8px;">✅ 완료</span>`:''}
                       </div>`;
                     }).join('')}
                     ${myItems.length?`
