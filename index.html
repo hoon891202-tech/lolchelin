@@ -462,12 +462,12 @@ select.inp option{background:#1e1e1e;}
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <span style="font-size:12px;color:var(--text-dim);width:60px;">4강</span>
           <select id="rule-semi" class="inp" style="width:100px;"><option value="BO3">BO3</option><option value="BO5">BO5</option><option value="BO1">BO1</option></select>
-          <input id="rule-semi-note" class="inp" style="flex:1;min-width:120px;" placeholder="비고 (예: 하드피너리스)">
+          <input id="rule-semi-note" class="inp" style="flex:1;min-width:120px;" placeholder="비고 (예: 하드피어리스)">
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <span style="font-size:12px;color:var(--text-dim);width:60px;">결승</span>
           <select id="rule-final" class="inp" style="width:100px;"><option value="BO5">BO5</option><option value="BO3">BO3</option><option value="BO7">BO7</option></select>
-          <input id="rule-final-note" class="inp" style="flex:1;min-width:120px;" placeholder="비고 (예: 하드피너리스)">
+          <input id="rule-final-note" class="inp" style="flex:1;min-width:120px;" placeholder="비고 (예: 하드피어리스)">
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
           <span style="font-size:12px;color:var(--text-dim);width:60px;">3·4위전</span>
@@ -654,7 +654,15 @@ select.inp option{background:#1e1e1e;}
           <input id="my-email" class="inp" style="width:100%;opacity:0.5;" disabled>
         </div>
       </div>
-      <button class="btn btn-red" onclick="saveMyProfile()" style="width:100%;margin-top:4px;">💾 저장</button>
+      <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;letter-spacing:1px;">💳 계좌 정보 (번개 정산 시 표시)</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input id="my-bank" class="inp" style="width:100px;" placeholder="은행 (예: 카카오)">
+          <input id="my-account" class="inp" style="flex:1;min-width:140px;" placeholder="계좌번호">
+          <input id="my-account-holder" class="inp" style="width:90px;" placeholder="예금주">
+        </div>
+      </div>
+      <button class="btn btn-red" onclick="saveMyProfile()" style="width:100%;margin-top:10px;">💾 저장</button>
     </div>
   </div>
 
@@ -1016,6 +1024,51 @@ async function loadRanking(){
 }
 
 // ── STATS ──
+let statsRows = [];
+let statsSort = 'pts';
+let statsSortDir = 'desc';
+
+function renderStatsTable() {
+  const sorted = [...statsRows].sort((a,b) => {
+    let va = a[statsSort], vb = b[statsSort];
+    if(statsSort === 'nick') { va = va||''; vb = vb||''; return statsSortDir==='asc' ? va.localeCompare(vb) : vb.localeCompare(va); }
+    if(statsSort === 'tier') { va = TIER_PTS_MAP[a.tier]||0; vb = TIER_PTS_MAP[b.tier]||0; }
+    return statsSortDir==='asc' ? va-vb : vb-va;
+  });
+  const cols = [
+    {key:'nick',   label:'닉네임'},
+    {key:'tier',   label:'티어'},
+    {key:'jarangGames', label:'자랭판수'},
+    {key:'wins',   label:'내전 승'},
+    {key:'loses',  label:'내전 패'},
+    {key:'wr',     label:'승률'},
+    {key:'pts',    label:'총점'},
+  ];
+  const arrow = dir => dir==='asc' ? ' ▲' : ' ▼';
+  document.getElementById('stats-table').innerHTML = `<table class="tbl">
+    <tr>
+      <th>순위</th>
+      ${cols.map(c=>`<th style="cursor:pointer;user-select:none;white-space:nowrap;" onclick="sortStats('${c.key}')">${c.label}${statsSort===c.key?arrow(statsSortDir):' ⇅'}</th>`).join('')}
+    </tr>
+    ${sorted.map((r,i)=>`<tr>
+      <td>${i+1}</td>
+      <td style="font-weight:500;">${r.realname||r.nick} ${r.birthyear?`<span style="font-size:11px;color:var(--text-dim);">${r.birthyear}년생</span>`:''} <span style="font-size:11px;color:var(--text-mid);">(${r.nick})</span></td>
+      <td><span class="tb t${r.tier}">${TIER_NAMES[r.tier]||r.tier}</span></td>
+      <td>${r.jarangGames}판</td>
+      <td class="v-green">${r.wins}</td>
+      <td class="v-red">${r.loses}</td>
+      <td>${r.total>0?r.wr+'%':'-'}</td>
+      <td class="v-gold">${r.pts}pt</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+window.sortStats = (key) => {
+  if(statsSort === key) statsSortDir = statsSortDir==='desc' ? 'asc' : 'desc';
+  else { statsSort = key; statsSortDir = 'desc'; }
+  renderStatsTable();
+};
+
 function initStatsMonths(){
   const sel = document.getElementById('stats-month');
   const now = new Date();
@@ -1047,20 +1100,10 @@ window.loadStats = async () => {
       const total=wins+loses;
       rows.push({nick:u.nick,realname:u.realname||'',birthyear:u.birthyear||'',tier:u.tier,pts,wins,loses,total,jarangGames,wr:total>0?Math.round(wins/total*100):0});
     }
-    rows.sort((a,b)=>b.pts-a.pts);
-    el.innerHTML = `<table class="tbl">
-      <tr><th>순위</th><th>닉네임</th><th>티어</th><th>자랭판수</th><th>내전 승</th><th>내전 패</th><th>승률</th><th>총점</th></tr>
-      ${rows.map((r,i)=>`<tr>
-        <td>${i+1}</td>
-        <td style="font-weight:500;">${r.realname||r.nick} ${r.birthyear?'<span style=\"font-size:11px;color:var(--text-dim);\">'+ r.birthyear+'년생</span>':''} <span style="font-size:11px;color:var(--text-mid);">(${r.nick})</span></td>
-        <td><span class="tb t${r.tier}">${TIER_NAMES[r.tier]||r.tier}</span></td>
-        <td>${r.jarangGames}판</td>
-        <td class="v-green">${r.wins}</td>
-        <td class="v-red">${r.loses}</td>
-        <td>${r.total>0?r.wr+'%':'-'}</td>
-        <td class="v-gold">${r.pts}pt</td>
-      </tr>`).join('')}
-    </table>`;
+    statsRows = rows;
+    statsSort = 'pts';
+    statsSortDir = 'desc';
+    renderStatsTable();
   } catch(e){ el.innerHTML='<div class="empty-hint">불러오기 실패: '+e.message+'</div>'; }
 };
 
@@ -1129,6 +1172,9 @@ function prefillMyPage(){
     document.getElementById('my-sub-other').value = profileSub;
   }
   document.getElementById('my-email').value = currentUser.email || '';
+  document.getElementById('my-bank').value = currentProfile.bankName || '';
+  document.getElementById('my-account').value = currentProfile.accountNum || '';
+  document.getElementById('my-account-holder').value = currentProfile.accountHolder || '';
 }
 
 async function loadMyPage(){
@@ -1220,9 +1266,12 @@ window.saveMyProfile = async () => {
   const tier = document.getElementById('my-tier').value;
   const main = document.getElementById('my-main').value;
   const sub = getSubValue('my-sub','my-sub-other');
+  const bankName = document.getElementById('my-bank').value.trim();
+  const accountNum = document.getElementById('my-account').value.trim();
+  const accountHolder = document.getElementById('my-account-holder').value.trim();
   if(!nick||!realname||!birthyear){ showToast('닉네임, 이름, 년생을 모두 입력해주세요'); return; }
-  await updateDoc(doc(db,'users',currentUser.uid),{ nick, realname, birthyear, tier, main, sub });
-  currentProfile = {...currentProfile, nick, realname, birthyear, tier, main, sub};
+  await updateDoc(doc(db,'users',currentUser.uid),{ nick, realname, birthyear, tier, main, sub, bankName, accountNum, accountHolder });
+  currentProfile = {...currentProfile, nick, realname, birthyear, tier, main, sub, bankName, accountNum, accountHolder};
   const dn = realname ? `${realname} (${nick})` : nick;
   document.getElementById('nav-nick').textContent = dn;
   showToast('프로필이 저장됐습니다 ✅');
@@ -1516,28 +1565,37 @@ async function loadLtExpenses(id) {
     }
     const catMap = {};
     expenses.forEach(e => { const c=e.category||'🛒 기타'; if(!catMap[c]) catMap[c]=[]; catMap[c].push(e); });
-    expList.innerHTML = Object.entries(catMap).map(([cat, items]) => `
+    const totalAmt = expenses.reduce((s,e)=>s+e.amount,0);
+    // 경비 건별 내역 — 기본 접힘
+    expList.innerHTML = `
       <div class="card" style="margin-bottom:10px;">
-        <div style="padding:14px;">
-          <div style="font-weight:800;font-size:14px;margin-bottom:10px;">${cat}</div>
-          ${items.map(e => {
-            const share = Math.ceil(e.amount / (e.participants?.length||1));
-            return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);">
-              <div style="flex:1;">
-                <div style="font-weight:600;font-size:13px;">${e.title}</div>
-                ${e.memo?`<div style="font-size:11px;color:var(--text-dim);">📝 ${e.memo}</div>`:''}
-                <div style="font-size:11px;color:var(--text-dim);">${e.participants?.length||0}명 · 1인 <strong>${ltWon(share)}</strong></div>
-                <div style="margin-top:3px;">${(e.participants||[]).map(uid=>`<span style="display:inline-block;background:var(--bg3);border-radius:4px;padding:1px 5px;font-size:10px;margin:1px;">${ltUsers[uid]?.nick||uid}</span>`).join('')}</div>
-              </div>
-              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-left:10px;">
-                <div style="font-size:15px;font-weight:800;color:#f0b040;">${ltWon(e.amount)}</div>
-                ${isAdmin||e.addedBy===currentUser.uid?`<button class="btn btn-sm" style="background:#3a1010;border:1px solid #6a2020;color:#ff6666;" onclick="deleteLtExpense('${id}','${e.id}')">삭제</button>`:''}
-              </div>
-            </div>`;
-          }).join('')}
-          <div style="display:flex;justify-content:flex-end;padding-top:8px;font-size:13px;font-weight:700;color:var(--text-dim);">소계: <span style="color:#f0b040;margin-left:6px;">${ltWon(items.reduce((s,e)=>s+e.amount,0))}</span></div>
+        <div style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleLtExpDetail()">
+          <span style="font-weight:700;font-size:13px;">📋 경비 건별 내역</span>
+          <span id="lt-exp-toggle-icon" style="font-size:12px;color:var(--text-dim);">▶ 펼치기</span>
         </div>
-      </div>`).join('');
+        <div id="lt-exp-detail" style="display:none;border-top:1px solid var(--border);">
+          ${Object.entries(catMap).map(([cat, items]) => `
+            <div style="padding:12px 14px;">
+              <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:var(--text-mid);">${cat}</div>
+              ${items.map(e => {
+                const share = Math.ceil(e.amount / (e.participants?.length||1));
+                return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--border);">
+                  <div style="flex:1;">
+                    <div style="font-weight:600;font-size:13px;">${e.title}</div>
+                    ${e.memo?`<div style="font-size:11px;color:var(--text-dim);">📝 ${e.memo}</div>`:''}
+                    <div style="font-size:11px;color:var(--text-dim);">${e.participants?.length||0}명 · 1인 <strong>${ltWon(share)}</strong> · 결제: ${ltUsers[e.paidBy||e.addedBy]?.nick||'?'}</div>
+                    <div style="margin-top:2px;">${(e.participants||[]).map(uid=>`<span style="display:inline-block;background:var(--bg3);border-radius:4px;padding:1px 5px;font-size:10px;margin:1px;">${ltUsers[uid]?.nick||uid}</span>`).join('')}</div>
+                  </div>
+                  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-left:10px;">
+                    <div style="font-size:14px;font-weight:800;color:#f0b040;">${ltWon(e.amount)}</div>
+                    ${isAdmin||e.addedBy===currentUser.uid?`<button class="btn btn-sm" style="background:#3a1010;border:1px solid #6a2020;color:#ff6666;" onclick="deleteLtExpense('${id}','${e.id}')">삭제</button>`:''}
+                  </div>
+                </div>`;
+              }).join('')}
+              <div style="display:flex;justify-content:flex-end;padding-top:6px;font-size:12px;color:var(--text-dim);">소계: <span style="color:#f0b040;margin-left:4px;font-weight:700;">${ltWon(items.reduce((s,e)=>s+e.amount,0))}</span></div>
+            </div>`).join('<div style="height:1px;background:var(--border);"></div>')}
+        </div>
+      </div>`;
     // 잔액 계산
     const balance = {}, personDetail = {};
     expenses.forEach(e => {
@@ -1552,7 +1610,6 @@ async function loadLtExpenses(id) {
         personDetail[uid].push({title:e.title, cat, share, payer});
       });
     });
-    const totalAmt = expenses.reduce((s,e)=>s+e.amount,0);
     const catTotal = {};
     expenses.forEach(e => { const c=e.category||'🛒 기타'; catTotal[c]=(catTotal[c]||0)+e.amount; });
     function ltSimplify(bal) {
@@ -1573,10 +1630,12 @@ async function loadLtExpenses(id) {
     const completed = transactions.filter(t => completedMap[`${t.from}_${t.to}`]);
     const remainAmt = remaining.reduce((s,t)=>s+t.amount,0);
     const completedAmt = completed.reduce((s,t)=>s+t.amount,0);
+    // 개인별 정산 요약용 uids 수집
+    const allUids = new Set([...transactions.map(t=>t.from), ...transactions.map(t=>t.to)]);
     summary.innerHTML = `
       <div class="card">
         <div style="padding:14px;">
-          <div style="font-weight:800;font-size:14px;margin-bottom:10px;">📊 카테고리별 합계</div>
+          <div style="font-weight:800;font-size:14px;margin-bottom:10px;">📊 합계</div>
           ${Object.entries(catTotal).map(([cat,amt])=>`
             <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span>${cat}</span><span style="font-weight:700;">${ltWon(amt)}</span></div>`).join('')}
           <div style="display:flex;justify-content:space-between;padding:10px 0 4px;font-weight:800;font-size:14px;">
@@ -1585,73 +1644,78 @@ async function loadLtExpenses(id) {
         </div>
       </div>
       <div class="card">
-        <div style="padding:14px;background:linear-gradient(135deg,#2a1a4a,#3a2a5a);border-radius:8px;margin-bottom:12px;">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-            <div><div style="font-weight:800;font-size:15px;margin-bottom:2px;">💸 최종 정산</div>
-              <div style="font-size:11px;color:#c0c0e0;">완료 버튼을 누르면 정산 완료 처리됩니다</div>
-            </div>
-            <div style="text-align:right;">
-              ${completedAmt>0?`<div style="font-size:11px;color:#88cc88;">완료 ${ltWon(completedAmt)}</div>`:''}
-              <div style="font-size:14px;font-weight:800;">잔여 ${ltWon(remainAmt)}</div>
-            </div>
-          </div>
-        </div>
-        ${!transactions.length
-          ? `<div style="text-align:center;padding:16px;color:var(--text-dim);font-size:13px;">정산할 내역이 없습니다 🎉</div>`
-          : `${remaining.length?`
-            <div style="font-size:12px;font-weight:700;color:var(--text-dim);margin-bottom:8px;">미완료 (${remaining.length}건)</div>
-            ${remaining.map(t=>{
-              const toU=ltUsers[t.to]||{};
-              const can=t.from===currentUser.uid||t.to===currentUser.uid||isAdmin;
-              return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--border);">
-                <span style="font-weight:700;font-size:13px;background:var(--bg3);padding:2px 8px;border-radius:6px;">${ltUsers[t.from]?.nick||t.from}</span>
-                <span style="color:var(--text-dim);">→</span>
-                <span style="font-weight:700;font-size:13px;background:var(--bg3);padding:2px 8px;border-radius:6px;">${toU.nick||t.to}</span>
-                <span style="font-size:14px;font-weight:800;color:#f0b040;margin-left:auto;">${ltWon(t.amount)}</span>
-                ${can?`<button class="btn btn-sm" style="background:#1a3a1a;border:1px solid #4a7a4a;color:#88cc88;" onclick="markLtSettleDone('${id}','${t.from}','${t.to}',${t.amount})">✓ 완료</button>`:''}
-              </div>`;
-            }).join('')}`:''}
-          ${completed.length?`
-            <div style="font-size:12px;font-weight:700;color:#88cc88;margin:12px 0 8px;">✅ 완료된 정산 (${completed.length}건)</div>
-            ${completed.map(t=>{
-              const rec=completedMap[`${t.from}_${t.to}`];
-              return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--border);opacity:0.5;">
-                <span style="font-size:13px;background:#333;padding:2px 8px;border-radius:6px;color:#888;">${ltUsers[t.from]?.nick||t.from}</span>
-                <span style="color:#888;">→</span>
-                <span style="font-size:13px;background:#333;padding:2px 8px;border-radius:6px;color:#888;">${ltUsers[t.to]?.nick||t.to}</span>
-                <span style="font-size:13px;font-weight:700;color:#888;text-decoration:line-through;margin-left:auto;">${ltWon(t.amount)}</span>
-                <span style="font-size:10px;font-weight:700;background:#1a3a1a;color:#88cc88;padding:2px 6px;border-radius:8px;">✅ 완료</span>
-                ${isAdmin?`<button class="btn btn-sm" style="background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);" onclick="undoLtSettleDone('${id}','${rec.id}')">취소</button>`:''}
-              </div>`;
-            }).join('')}`:''}
-          `}
-      </div>
-      <div class="card">
         <div style="padding:14px;">
-          <div style="font-weight:800;font-size:14px;margin-bottom:10px;">👤 인원별 상세 내역</div>
-          ${Object.keys(personDetail).length===0
-            ?`<div style="color:var(--text-dim);font-size:13px;">내역 없음</div>`
-            :Object.entries(personDetail).map(([uid,items])=>{
-              const myBal=Math.round(balance[uid]||0);
-              const balLabel=myBal>50?`<span style="color:#88cc88;font-weight:700;">+${ltWon(myBal)} 받을 돈</span>`
-                :myBal<-50?`<span style="color:#ff6666;font-weight:700;">${ltWon(myBal)} 낼 돈</span>`
-                :`<span style="color:var(--text-dim);font-size:12px;">정산 완료</span>`;
-              const isMe=uid===currentUser.uid;
-              return `<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:8px;">
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg3);cursor:pointer;" onclick="toggleLtDetail('${uid}')">
-                  <div style="font-weight:700;font-size:13px;">${isMe?`나 (${ltUsers[uid]?.nick||uid})`:ltUsers[uid]?.nick||uid}</div>
-                  <div style="display:flex;align-items:center;gap:8px;">${balLabel}<span style="color:var(--text-dim);font-size:12px;">▾</span></div>
-                </div>
-                <div id="lt-settle-detail-${uid}" style="display:none;padding:10px 14px;border-top:1px solid var(--border);">
-                  ${items.map(i=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:5px 0;border-bottom:1px solid var(--border);">
-                    <div><span style="font-size:11px;background:var(--bg4);border-radius:4px;padding:1px 5px;margin-right:4px;">${i.cat}</span>${i.title}
-                      <span style="color:var(--text-dim);font-size:11px;">(결제: ${ltUsers[i.payer]?.nick||i.payer})</span></div>
-                    <span style="font-weight:700;color:#ff6666;margin-left:8px;white-space:nowrap;">-${ltWon(i.share)}</span>
-                  </div>`).join('')}
-                  <div style="display:flex;justify-content:flex-end;padding-top:6px;font-size:13px;">내 부담 합계: <strong style="margin-left:6px;">${ltWon(items.reduce((s,i)=>s+i.share,0))}</strong></div>
-                </div>
-              </div>`;
-            }).join('')}
+          <div style="font-weight:800;font-size:15px;margin-bottom:4px;">💸 개인별 정산</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:14px;">완료 버튼을 누르면 정산 완료 처리됩니다</div>
+          ${!allUids.size
+            ? `<div style="text-align:center;padding:16px;color:var(--text-dim);font-size:13px;">정산할 내역이 없습니다 🎉</div>`
+            : [...allUids].map(uid => {
+                const isMe = uid === currentUser.uid;
+                const sends = transactions.filter(t => t.from === uid);
+                const receives = transactions.filter(t => t.to === uid);
+                const myItems = personDetail[uid] || [];
+                const totalSend = sends.reduce((s,t)=>s+t.amount,0);
+                const totalRecv = receives.reduce((s,t)=>s+t.amount,0);
+                return `
+                <div style="border:1px solid ${isMe?'#5a4a7a':'var(--border)'};border-radius:8px;overflow:hidden;margin-bottom:10px;${isMe?'box-shadow:0 0 0 1px #5a4a7a22;':''}">
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:${isMe?'#2a1a4a':'var(--bg3)'};">
+                    <div style="font-weight:700;font-size:14px;">${isMe?`⭐ 나 (${ltUsers[uid]?.nick||uid})`:ltUsers[uid]?.nick||uid}</div>
+                    <div style="font-size:12px;display:flex;gap:8px;">
+                      ${totalSend>0?`<span style="color:#ff8888;">보낼 돈 ${ltWon(totalSend)}</span>`:''}
+                      ${totalRecv>0?`<span style="color:#88cc88;">받을 돈 ${ltWon(totalRecv)}</span>`:''}
+                      ${!totalSend&&!totalRecv?`<span style="color:var(--text-dim);">정산 없음</span>`:''}
+                    </div>
+                  </div>
+                  <div style="padding:10px 14px;">
+                    ${sends.map(t => {
+                      const isDone = !!completedMap[`${t.from}_${t.to}`];
+                      const rec = completedMap[`${t.from}_${t.to}`];
+                      const can = t.from===currentUser.uid||t.to===currentUser.uid||isAdmin;
+                      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);${isDone?'opacity:0.45;':''}">
+                        <span style="font-size:16px;">📤</span>
+                        <div style="flex:1;">
+                          <span style="font-size:13px;font-weight:600;">${ltUsers[t.to]?.nick||t.to}</span>
+                          <span style="font-size:12px;color:var(--text-dim);">에게</span>
+                          <span style="font-size:14px;font-weight:800;color:${isDone?'#888':'#ff8888'};margin-left:6px;${isDone?'text-decoration:line-through;':''}">${ltWon(t.amount)}</span>
+                        </div>
+                        ${isDone
+                          ? `<span style="font-size:10px;font-weight:700;background:#1a3a1a;color:#88cc88;padding:2px 6px;border-radius:8px;">✅ 완료</span>
+                             ${isAdmin?`<button class="btn btn-sm" style="background:var(--bg4);border:1px solid var(--border);color:var(--text-dim);" onclick="undoLtSettleDone('${id}','${rec.id}')">취소</button>`:''}`
+                          : can?`<button class="btn btn-sm" style="background:#1a3a1a;border:1px solid #4a7a4a;color:#88cc88;" onclick="markLtSettleDone('${id}','${t.from}','${t.to}',${t.amount})">✓ 완료</button>`:''}
+                      </div>`;
+                    }).join('')}
+                    ${receives.map(t => {
+                      const isDone = !!completedMap[`${t.from}_${t.to}`];
+                      const fromU = ltUsers[t.from]||{};
+                      const hasAccount = fromU.accountNum;
+                      return `<div style="padding:7px 0;border-bottom:1px solid var(--border);${isDone?'opacity:0.45;':''}">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                          <span style="font-size:16px;">📥</span>
+                          <div style="flex:1;">
+                            <span style="font-size:13px;font-weight:600;">${fromU.nick||t.from}</span>
+                            <span style="font-size:12px;color:var(--text-dim);">에게서</span>
+                            <span style="font-size:14px;font-weight:800;color:${isDone?'#888':'#88cc88'};margin-left:6px;${isDone?'text-decoration:line-through;':''}">${ltWon(t.amount)}</span>
+                          </div>
+                          ${isDone?`<span style="font-size:10px;font-weight:700;background:#1a3a1a;color:#88cc88;padding:2px 6px;border-radius:8px;">✅ 완료</span>`:''}
+                        </div>
+                        ${hasAccount?`<div style="margin-top:4px;margin-left:28px;font-size:11px;color:var(--text-dim);background:var(--bg3);padding:4px 8px;border-radius:6px;display:inline-block;">🏦 ${fromU.bankName||''} <span style="font-family:monospace;letter-spacing:1px;">${fromU.accountNum}</span>${fromU.accountHolder?` · ${fromU.accountHolder}`:''}</div>`:''}
+                      </div>`;
+                    }).join('')}
+                    ${myItems.length?`
+                      <div style="margin-top:8px;">
+                        <div style="font-size:11px;color:var(--text-dim);cursor:pointer;padding:4px 0;" onclick="toggleLtDetail('${uid}')">경비 상세 보기 ▾</div>
+                        <div id="lt-settle-detail-${uid}" style="display:none;margin-top:6px;">
+                          ${myItems.map(i=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);">
+                            <div><span style="font-size:10px;background:var(--bg4);border-radius:3px;padding:1px 4px;margin-right:3px;">${i.cat}</span>${i.title}
+                              <span style="color:var(--text-dim);font-size:10px;">(결제: ${ltUsers[i.payer]?.nick||i.payer})</span></div>
+                            <span style="color:#ff8888;white-space:nowrap;margin-left:6px;">-${ltWon(i.share)}</span>
+                          </div>`).join('')}
+                          <div style="text-align:right;padding-top:4px;font-size:12px;color:var(--text-dim);">부담 합계: <strong>${ltWon(myItems.reduce((s,i)=>s+i.share,0))}</strong></div>
+                        </div>
+                      </div>`:''}
+                  </div>
+                </div>`;
+              }).join('')}
         </div>
       </div>`;
   } catch(e) { expList.innerHTML = `<div style="padding:14px;color:var(--text-dim);">오류: ${e.message}</div>`; }
@@ -1660,6 +1724,15 @@ async function loadLtExpenses(id) {
 window.toggleLtDetail = (uid) => {
   const el = document.getElementById('lt-settle-detail-'+uid);
   if(el) el.style.display = el.style.display==='none'?'':'none';
+};
+
+window.toggleLtExpDetail = () => {
+  const el = document.getElementById('lt-exp-detail');
+  const icon = document.getElementById('lt-exp-toggle-icon');
+  if(!el) return;
+  const open = el.style.display === 'none';
+  el.style.display = open ? '' : 'none';
+  if(icon) icon.textContent = open ? '▼ 접기' : '▶ 펼치기';
 };
 
 window.openLtExpenseModal = async () => {
@@ -2391,8 +2464,8 @@ window.saveRegs = async () => {
 // ── RULE SETTINGS ──
 const DEFAULT_RULES = {
   tiers: [{name:'챌/그마',pts:10},{name:'마스터',pts:9},{name:'다이아',pts:8},{name:'에메',pts:7},{name:'플레',pts:6},{name:'골드',pts:5},{name:'실버',pts:4},{name:'브론즈↓',pts:3}],
-  semi:'BO3', semiNote:'하드피너리스',
-  final:'BO5', finalNote:'하드피너리스',
+  semi:'BO3', semiNote:'하드피어리스',
+  final:'BO5', finalNote:'하드피어리스',
   third:'없음', thirdNote:'패자 즉시 탈락',
   p1:'구두 경고', p2:'해당 경기 몰수패', p3:'대회 제명'
 };
@@ -3100,17 +3173,24 @@ window.clearApplicants = async () => {
 let draftPlayers = [], draftDragName = null;
 
 window.loadDraftMembers = async () => {
-  // 신청자만 불러오기
   const applySnap = await getDocs(query(collection(db,'applicants'), where('applied','==',true)));
   const appliedUids = new Set();
   applySnap.forEach(d => appliedUids.add(d.data().uid));
-  draftPlayers = [];
   if(!appliedUids.size){ renderDraft(); showToast('신청자가 없습니다'); return; }
   const snap = await getDocs(collection(db,'users'));
-  snap.forEach(d=>{ const u=d.data(); if(u.active && appliedUids.has(d.id)) draftPlayers.push({id:d.id,...u,loc:'pool'}); });
-  draftPlayers.sort((a,b)=>(TIER_PTS_MAP[b.tier]||0)-(TIER_PTS_MAP[a.tier]||0));
+  const allApplicants = {};
+  snap.forEach(d=>{ const u=d.data(); if(u.active && appliedUids.has(d.id)) allApplicants[d.id]={id:d.id,...u}; });
+  // 취소자 제거 (기존 배치 유지)
+  draftPlayers = draftPlayers.filter(p => appliedUids.has(p.id));
+  // 신규자만 추가
+  const existingIds = new Set(draftPlayers.map(p=>p.id));
+  const newPlayers = Object.values(allApplicants)
+    .filter(u => !existingIds.has(u.id))
+    .map(u => ({...u, loc:'pool'}));
+  newPlayers.sort((a,b)=>(TIER_PTS_MAP[b.tier]||0)-(TIER_PTS_MAP[a.tier]||0));
+  draftPlayers = [...draftPlayers, ...newPlayers];
   renderDraft();
-  showToast(`신청자 ${draftPlayers.length}명 불러왔습니다`);
+  showToast(newPlayers.length ? `신규 ${newPlayers.length}명 추가됐습니다` : '최신 상태로 동기화됐습니다');
 };
 
 function renderDraft(){
