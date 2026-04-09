@@ -1481,11 +1481,11 @@ window.showLightningDetail = async (id) => {
               ${lt.description?`<div style="font-size:13px;color:var(--text-mid);line-height:1.7;margin-top:6px;white-space:pre-wrap;">${lt.description}</div>`:''}
             </div>
           </div>
-          ${isAdmin?`<div style="display:flex;flex-direction:column;gap:6px;margin-left:10px;">
-            ${lt.status!=='completed'&&ltEffectiveStatus(lt)==='completed'?`<button class="btn btn-sm" style="background:#1a3a1a;border:1px solid #4a7a4a;color:#88cc88;" onclick="completeLt('${id}')">✅ 완료 저장</button>`:''}
+          <div style="display:flex;flex-direction:column;gap:6px;margin-left:10px;">
+            ${isAdmin&&lt.status!=='completed'&&ltEffectiveStatus(lt)==='completed'?`<button class="btn btn-sm" style="background:#1a3a1a;border:1px solid #4a7a4a;color:#88cc88;" onclick="completeLt('${id}')">✅ 완료 저장</button>`:''}
             <button class="btn btn-sm" style="background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);" onclick="openLtModal('${id}')">수정</button>
-            <button class="btn btn-sm" style="background:#3a1010;border:1px solid #6a2020;color:#ff6666;" onclick="deleteLt('${id}')">삭제</button>
-          </div>`:''}
+            ${isAdmin?`<button class="btn btn-sm" style="background:#3a1010;border:1px solid #6a2020;color:#ff6666;" onclick="deleteLt('${id}')">삭제</button>`:''}
+          </div>
         </div>
       </div>
     </div>`;
