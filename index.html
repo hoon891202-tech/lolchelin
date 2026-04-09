@@ -387,7 +387,7 @@ select.inp option{background:#1e1e1e;}
   <div id="lt-list-view">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
       <div style="font-size:18px;font-weight:800;">⚡ 번개</div>
-      <button id="lt-add-btn" class="btn btn-sm" style="display:none;background:#2a1a4a;border:1px solid #6a4a9a;color:#cc88ff;" onclick="openLtModal()">+ 번개 추가</button>
+      <button id="lt-add-btn" class="btn btn-sm" style="background:#2a1a4a;border:1px solid #6a4a9a;color:#cc88ff;" onclick="openLtModal()">+ 번개 추가</button>
     </div>
     <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
       <div class="lt-filter-tab active" onclick="filterLt('all',this)">전체</div>
@@ -1409,7 +1409,6 @@ let currentLtId = null;
 async function loadLightningPage() {
   document.getElementById('lt-detail').style.display = 'none';
   document.getElementById('lt-list-view').style.display = '';
-  if(isAdmin) document.getElementById('lt-add-btn').style.display = '';
   document.getElementById('lt-list').innerHTML = '<div class="loading">불러오는 중...</div>';
   try {
     const [usersSnap, ltSnap] = await Promise.all([
