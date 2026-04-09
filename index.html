@@ -2915,7 +2915,7 @@ async function jpRenderSlotCard(n){
           <div style="margin-top:10px;padding:10px;background:var(--bg4);border-radius:6px;border:1px solid var(--border);">
             <div style="font-size:11px;color:var(--gold);margin-bottom:6px;">🏆 5명 모집 완료! 판수를 입력하세요</div>
             <div style="display:flex;gap:6px;align-items:center;">
-              <input type="number" id="jp-games-${n}" min="1" max="99" value="1" class="inp" style="width:70px;text-align:center;">
+              <input type="number" id="jp-games-${n}" min="1" max="5" value="1" class="inp" style="width:70px;text-align:center;">
               <span style="font-size:12px;color:var(--text-dim);">판</span>
               <button class="btn btn-gold btn-sm" onclick="jpComplete(${n})" style="flex:1;">✅ 완료 기록</button>
             </div>
@@ -2994,6 +2994,7 @@ window.jpComplete = async (n) => {
   const gamesEl = document.getElementById(`jp-games-${n}`);
   const games = parseInt(gamesEl ? gamesEl.value : 0);
   if(!games || games < 1){ showToast('판수를 입력해주세요'); return; }
+  if(games > 5){ showToast('최대 5판까지만 기록할 수 있습니다'); return; }
   const slotRef = doc(db,'jarPartySlots',`slot${n}`);
   const snap = await getDoc(slotRef);
   if(!snap.exists()) return;
