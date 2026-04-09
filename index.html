@@ -2042,6 +2042,7 @@ async function loadAdmin(){
           <button class="adm-btn" style="border-color:#3a5a3a;color:#88cc88;" onclick="adminResetRest('${d.id}','${u.nick}')">휴식기 리셋</button>
           ${u.isAdmin?`<button class="adm-btn" style="border-color:#7a5f22;color:var(--gold);" onclick="adminDemote('${d.id}','${u.nick}')">👑 관리자 해제</button>`:`<button class="adm-btn" style="border-color:#5a7a22;color:#aadd44;" onclick="adminPromote('${d.id}','${u.nick}')">관리자 승격</button>`}
           ${u.active?`<button class="adm-btn kick" onclick="adminKick('${d.id}','${u.nick}')">탈퇴</button>`:`<button class="adm-btn" onclick="adminRestore('${d.id}','${u.nick}')">복구</button>`}
+          <button class="adm-btn" style="border-color:#5a3a7a;color:#bb88ee;" onclick="adminResetPassword('${u.email||''}','${u.realname||u.nick}')">🔑 비번재설정</button>
         </div>
       </div>`;
     }
@@ -2259,6 +2260,17 @@ window.adminRestore = async (uid, nick) => {
   if(!confirm(`${nick}님을 복구하시겠습니까?`)) return;
   await updateDoc(doc(db,'users',uid),{active:true});
   showToast(`${nick}님 복구됨`); loadAdmin();
+};
+window.adminResetPassword = async (email, name) => {
+  if(!email){ showToast('이메일 정보가 없습니다'); return; }
+  if(!confirm(`${name}님(${email})에게 비밀번호 재설정 이메일을 발송하시겠습니까?`)) return;
+  try {
+    const { sendPasswordResetEmail } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js");
+    await sendPasswordResetEmail(auth, email);
+    showToast(`✅ ${name}님께 비밀번호 재설정 이메일을 발송했습니다`);
+  } catch(e) {
+    showToast('발송 실패: ' + e.message);
+  }
 };
 
 let showInactiveMembers = false;
