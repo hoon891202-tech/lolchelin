@@ -344,9 +344,12 @@ select.inp option{background:#1e1e1e;}
         <button id="nj1-btn" class="btn btn-red btn-sm" onclick="njToggleApply(1)">신청하기</button>
         <div id="nj1-admin-add" style="display:none;margin-top:10px;padding:10px;background:var(--bg4);border-radius:6px;border:1px solid var(--border);">
           <div style="font-size:11px;color:var(--gold);margin-bottom:7px;">👑 관리자 — 회원 추가</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+            <input id="nj1-search" class="inp" style="flex:1;min-width:120px;font-size:12px;" placeholder="이름 검색..." oninput="njFilterSelect(1)">
+          </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <select id="nj1-add-uid" class="inp" style="flex:1;min-width:120px;font-size:12px;"></select>
-            <button class="btn btn-gold btn-sm" onclick="njAdminAdd(1)">추가</button>
+            <select id="nj1-add-uid" class="inp" style="flex:1;min-width:120px;font-size:12px;" size="4"></select>
+            <button class="btn btn-gold btn-sm" onclick="njAdminAdd(1)" style="align-self:flex-start;">추가</button>
           </div>
         </div>
         <div id="nj1-list"></div>
@@ -358,9 +361,12 @@ select.inp option{background:#1e1e1e;}
         <button id="nj2-btn" class="btn btn-red btn-sm" onclick="njToggleApply(2)">신청하기</button>
         <div id="nj2-admin-add" style="display:none;margin-top:10px;padding:10px;background:var(--bg4);border-radius:6px;border:1px solid var(--border);">
           <div style="font-size:11px;color:var(--gold);margin-bottom:7px;">👑 관리자 — 회원 추가</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
+            <input id="nj2-search" class="inp" style="flex:1;min-width:120px;font-size:12px;" placeholder="이름 검색..." oninput="njFilterSelect(2)">
+          </div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <select id="nj2-add-uid" class="inp" style="flex:1;min-width:120px;font-size:12px;"></select>
-            <button class="btn btn-gold btn-sm" onclick="njAdminAdd(2)">추가</button>
+            <select id="nj2-add-uid" class="inp" style="flex:1;min-width:120px;font-size:12px;" size="4"></select>
+            <button class="btn btn-gold btn-sm" onclick="njAdminAdd(2)" style="align-self:flex-start;">추가</button>
           </div>
         </div>
         <div id="nj2-list"></div>
@@ -2602,20 +2608,39 @@ async function loadNaejeonPage(){
   await loadNjHistory();
 }
 
+let njAllMembers = []; // 전체 멤버 캐시
+
 async function njFillAdminSelect(){
   try {
     const snap = await getDocs(collection(db,'users'));
-    const opts = '<option value="">회원 선택</option>' +
-      snap.docs.filter(d=>d.data().active).map(d=>{
-        const u = d.data();
-        return `<option value="${d.id}">${u.realname||u.nick} (${u.nick})</option>`;
-      }).join('');
-    ['nj1-add-uid','nj2-add-uid'].forEach(id=>{
-      const el = document.getElementById(id);
-      if(el) el.innerHTML = opts;
-    });
+    njAllMembers = snap.docs
+      .filter(d=>d.data().active)
+      .map(d=>({id:d.id, ...d.data()}))
+      .sort((a,b)=>(a.realname||a.nick||'').localeCompare(b.realname||b.nick||'', 'ko'));
+    njRenderSelect(1, '');
+    njRenderSelect(2, '');
   } catch(e){ console.error(e); }
 }
+
+function njRenderSelect(game, keyword){
+  const filtered = keyword
+    ? njAllMembers.filter(u=>{
+        const name = (u.realname||u.nick||'').toLowerCase();
+        const nick = (u.nick||'').toLowerCase();
+        return name.includes(keyword.toLowerCase()) || nick.includes(keyword.toLowerCase());
+      })
+    : njAllMembers;
+  const el = document.getElementById(`nj${game}-add-uid`);
+  if(!el) return;
+  el.innerHTML = filtered.length
+    ? filtered.map(u=>`<option value="${u.id}">${u.realname||u.nick} ${u.birthyear?u.birthyear+'년생 ':''} (${u.nick})</option>`).join('')
+    : '<option value="">검색 결과 없음</option>';
+}
+
+window.njFilterSelect = function(game){
+  const keyword = document.getElementById(`nj${game}-search`).value;
+  njRenderSelect(game, keyword);
+};
 
 async function njLoadApplyStatus(){
   try {
@@ -2658,8 +2683,9 @@ window.njAdminRemove = async (uid, game) => {
 };
 
 window.njAdminAdd = async (game) => {
-  const uid = document.getElementById(`nj${game}-add-uid`).value;
-  if(!uid){ showToast('회원을 선택해주세요'); return; }
+  const sel = document.getElementById(`nj${game}-add-uid`);
+  const uid = sel.value;
+  if(!uid || uid==='검색 결과 없음'){ showToast('회원을 선택해주세요'); return; }
   // 해당 회원 정보 가져오기
   const userSnap = await getDoc(doc(db,'users',uid));
   if(!userSnap.exists()){ showToast('회원 정보를 찾을 수 없습니다'); return; }
