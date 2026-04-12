@@ -342,16 +342,6 @@ select.inp option{background:#1e1e1e;}
       <div class="card-header"><span class="card-icon">⚔️</span><span class="card-title">내전 1</span><span id="nj1-cnt" class="card-note">0명</span><button id="nj1-reset-btn" onclick="njClearApply(1)" style="display:none;margin-left:auto;font-size:11px;padding:2px 8px;background:#3a1010;border:1px solid #6a2020;color:#ff6666;border-radius:4px;cursor:pointer;">🗑 신청 초기화</button></div>
       <div style="padding:12px;display:flex;flex-direction:column;gap:8px;">
         <button id="nj1-btn" class="btn btn-red btn-sm" onclick="njToggleApply(1)">신청하기</button>
-        <div id="nj1-admin-add" style="display:none;margin-top:10px;padding:10px;background:var(--bg4);border-radius:6px;border:1px solid var(--border);">
-          <div style="font-size:11px;color:var(--gold);margin-bottom:7px;">👑 관리자 — 회원 추가</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
-            <input id="nj1-search" class="inp" style="flex:1;min-width:120px;font-size:12px;" placeholder="이름 검색..." oninput="njFilterSelect(1)">
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <select id="nj1-add-uid" class="inp" style="flex:1;min-width:120px;font-size:12px;" size="4"></select>
-            <button class="btn btn-gold btn-sm" onclick="njAdminAdd(1)" style="align-self:flex-start;">추가</button>
-          </div>
-        </div>
         <div id="nj1-list"></div>
       </div>
     </div>
@@ -359,16 +349,6 @@ select.inp option{background:#1e1e1e;}
       <div class="card-header"><span class="card-icon">⚔️</span><span class="card-title">내전 2</span><span id="nj2-cnt" class="card-note">0명</span><button id="nj2-reset-btn" onclick="njClearApply(2)" style="display:none;margin-left:auto;font-size:11px;padding:2px 8px;background:#3a1010;border:1px solid #6a2020;color:#ff6666;border-radius:4px;cursor:pointer;">🗑 신청 초기화</button></div>
       <div style="padding:12px;display:flex;flex-direction:column;gap:8px;">
         <button id="nj2-btn" class="btn btn-red btn-sm" onclick="njToggleApply(2)">신청하기</button>
-        <div id="nj2-admin-add" style="display:none;margin-top:10px;padding:10px;background:var(--bg4);border-radius:6px;border:1px solid var(--border);">
-          <div style="font-size:11px;color:var(--gold);margin-bottom:7px;">👑 관리자 — 회원 추가</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">
-            <input id="nj2-search" class="inp" style="flex:1;min-width:120px;font-size:12px;" placeholder="이름 검색..." oninput="njFilterSelect(2)">
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <select id="nj2-add-uid" class="inp" style="flex:1;min-width:120px;font-size:12px;" size="4"></select>
-            <button class="btn btn-gold btn-sm" onclick="njAdminAdd(2)" style="align-self:flex-start;">추가</button>
-          </div>
-        </div>
         <div id="nj2-list"></div>
       </div>
     </div>
@@ -2600,47 +2580,45 @@ async function loadNaejeonPage(){
     document.getElementById('nj-admin-section').style.display = 'block';
     document.getElementById('nj1-reset-btn').style.display = 'inline-block';
     document.getElementById('nj2-reset-btn').style.display = 'inline-block';
-    // 관리자 추가 셀렉트 채우기
-    await njFillAdminSelect();
   }
-  if(isAdmin){ renderNjTeamBuilder(1); renderNjTeamBuilder(2); }
+  if(isAdmin){
+    renderNjTeamBuilder(1);
+    renderNjTeamBuilder(2);
+    // 저장된 배치 자동 복원
+    await njAutoRestoreArrange(1);
+    await njAutoRestoreArrange(2);
+  }
   await njLoadApplyStatus();
   await loadNjHistory();
 }
 
-let njAllMembers = []; // 전체 멤버 캐시
-
-async function njFillAdminSelect(){
+async function njAutoRestoreArrange(game){
   try {
-    const snap = await getDocs(collection(db,'users'));
-    njAllMembers = snap.docs
-      .filter(d=>d.data().active)
-      .map(d=>({id:d.id, ...d.data()}))
-      .sort((a,b)=>(a.realname||a.nick||'').localeCompare(b.realname||b.nick||'', 'ko'));
-    njRenderSelect(1, '');
-    njRenderSelect(2, '');
-  } catch(e){ console.error(e); }
-}
+    const arrangeSnap = await getDoc(doc(db,'naejeonArrange',`game${game}`));
+    if(!arrangeSnap.exists()) return;
+    const savedArrange = arrangeSnap.data().players || [];
+    if(!savedArrange.length) return;
 
-function njRenderSelect(game, keyword){
-  const filtered = keyword
-    ? njAllMembers.filter(u=>{
-        const name = (u.realname||u.nick||'').toLowerCase();
-        const nick = (u.nick||'').toLowerCase();
-        return name.includes(keyword.toLowerCase()) || nick.includes(keyword.toLowerCase());
-      })
-    : njAllMembers;
-  const el = document.getElementById(`nj${game}-add-uid`);
-  if(!el) return;
-  el.innerHTML = filtered.length
-    ? filtered.map(u=>`<option value="${u.id}">${u.realname||u.nick} ${u.birthyear?u.birthyear+'년생 ':''} (${u.nick})</option>`).join('')
-    : '<option value="">검색 결과 없음</option>';
-}
+    // 신청자 목록 가져오기
+    const applySnap = await getDocs(collection(db,'naejeonApply'));
+    const activeUids = new Set();
+    const allApplicants = {};
+    applySnap.forEach(d=>{ const u=d.data(); if(u[`game${game}`]){ activeUids.add(d.id); allApplicants[d.id]=u; } });
+    if(!activeUids.size) return;
 
-window.njFilterSelect = function(game){
-  const keyword = document.getElementById(`nj${game}-search`).value;
-  njRenderSelect(game, keyword);
-};
+    const savedMap = {};
+    savedArrange.forEach(p=>{ savedMap[p.uid]=p.loc; });
+
+    const players = [];
+    activeUids.forEach(uid=>{
+      const u = allApplicants[uid];
+      const savedLoc = savedMap[uid] || 'pool';
+      players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,main:u.main||'',sub:u.sub||'',loc:savedLoc});
+    });
+    njPlayers[game] = players;
+    renderNjPlayers(game);
+  } catch(e){ console.error('njAutoRestoreArrange error:', e); }
+}
 
 async function njLoadApplyStatus(){
   try {
@@ -2649,20 +2627,14 @@ async function njLoadApplyStatus(){
     snap.forEach(d=>{ const u=d.data(); if(u.game1) list1.push(u); if(u.game2) list2.push(u); });
     document.getElementById('nj1-cnt').textContent = list1.length+'명';
     document.getElementById('nj2-cnt').textContent = list2.length+'명';
-    const renderList = (list, game) => list.map(u=>`
+    const renderList = list => list.map(u=>`
       <div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">
         <span class="tb t${u.tier}" style="font-size:10px;">${TIER_NAMES[u.tier]||u.tier}</span>
         <span style="flex:1;">${u.realname||u.nick} <span style="color:var(--text-dim);font-size:11px;">(${u.nick})</span></span>
         <span style="font-size:11px;color:var(--text-dim);">${u.main||''}${u.sub&&u.sub!=='all'?' / '+u.sub:u.sub==='all'?' / 무관':''}</span>
-        ${isAdmin?`<button onclick="njAdminRemove('${u.uid}',${game})" style="font-size:10px;padding:2px 7px;background:#3a1010;border:1px solid #6a2020;color:#ff6666;border-radius:4px;cursor:pointer;flex-shrink:0;">취소</button>`:''}
       </div>`).join('') || '<div style="font-size:12px;color:var(--text-dim);padding:4px 0;">신청자 없음</div>';
-    document.getElementById('nj1-list').innerHTML = renderList(list1,1);
-    document.getElementById('nj2-list').innerHTML = renderList(list2,2);
-    // 관리자 추가 버튼
-    if(isAdmin){
-      document.getElementById('nj1-admin-add').style.display='block';
-      document.getElementById('nj2-admin-add').style.display='block';
-    }
+    document.getElementById('nj1-list').innerHTML = renderList(list1);
+    document.getElementById('nj2-list').innerHTML = renderList(list2);
     if(currentUser){
       const mySnap = await getDoc(doc(db,'naejeonApply',currentUser.uid));
       const my = mySnap.exists() ? mySnap.data() : {};
@@ -2672,35 +2644,6 @@ async function njLoadApplyStatus(){
     }
   } catch(e){ console.error(e); }
 }
-
-window.njAdminRemove = async (uid, game) => {
-  const field = `game${game}`;
-  const snap = await getDoc(doc(db,'naejeonApply',uid));
-  if(!snap.exists()) return;
-  await setDoc(doc(db,'naejeonApply',uid),{[field]:false},{merge:true});
-  showToast(`내전${game} 신청 취소됨`);
-  await njLoadApplyStatus();
-};
-
-window.njAdminAdd = async (game) => {
-  const sel = document.getElementById(`nj${game}-add-uid`);
-  const uid = sel.value;
-  if(!uid || uid==='검색 결과 없음'){ showToast('회원을 선택해주세요'); return; }
-  // 해당 회원 정보 가져오기
-  const userSnap = await getDoc(doc(db,'users',uid));
-  if(!userSnap.exists()){ showToast('회원 정보를 찾을 수 없습니다'); return; }
-  const u = userSnap.data();
-  const field = `game${game}`;
-  await setDoc(doc(db,'naejeonApply',uid),{
-    uid, nick:u.nick, realname:u.realname||'',
-    tier:u.tier, main:u.main||'', sub:u.sub||'',
-    [field]:true, updatedAt:new Date().toISOString()
-  },{merge:true});
-  showToast(`${u.realname||u.nick}님 내전${game} 추가됨!`);
-  await njLoadApplyStatus();
-  // 셀렉트 초기화
-  document.getElementById(`nj${game}-add-uid`).value='';
-};
 
 window.njToggleApply = async (game) => {
   if(!currentUser) return;
@@ -2792,7 +2735,17 @@ function renderNjPlayers(game){
 
 window.njDragStart = (e, game, uid) => { njDrag = {game, uid}; };
 
-window.njDrop = (e, game, zone) => {
+// Firestore에 배치 저장
+async function njSaveArrange(game){
+  try {
+    await setDoc(doc(db,'naejeonArrange',`game${game}`),{
+      players: njPlayers[game].map(p=>({uid:p.uid, loc:p.loc})),
+      updatedAt: new Date().toISOString()
+    });
+  } catch(e){ console.error('njSaveArrange error:', e); }
+}
+
+window.njDrop = async (e, game, zone) => {
   e.preventDefault();
   if(!njDrag || njDrag.game!==game) return;
   const p = njPlayers[game].find(pl=>pl.uid===njDrag.uid);
@@ -2804,6 +2757,8 @@ window.njDrop = (e, game, zone) => {
   p.loc = zone;
   njDrag = null;
   renderNjPlayers(game);
+  // Firestore에 배치 저장 (다른 관리자도 볼 수 있게)
+  await njSaveArrange(game);
 };
 
 window.njLoadTeam = async (game) => {
@@ -2811,21 +2766,31 @@ window.njLoadTeam = async (game) => {
   const activeUids = new Set();
   const allApplicants = {};
   snap.forEach(d=>{ const u=d.data(); if(u[`game${game}`]){ activeUids.add(d.id); allApplicants[d.id]=u; } });
-  // 취소한 사람 제거 (배치된 자리에서도)
-  njPlayers[game] = njPlayers[game].filter(p=>activeUids.has(p.uid));
-  // 새 신청자 추가
-  const existingUids = new Set(njPlayers[game].map(p=>p.uid));
-  const newPlayers = [];
-  activeUids.forEach(uid=>{ if(!existingUids.has(uid)){ const u=allApplicants[uid]; newPlayers.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,main:u.main||'',sub:u.sub||'',loc:'pool'}); } });
-  if(!njPlayers[game].length && !newPlayers.length){ showToast('신청자가 없습니다'); return; }
-  njPlayers[game] = [...njPlayers[game], ...newPlayers];
+
+  // Firestore에 저장된 배치 불러오기
+  const arrangeSnap = await getDoc(doc(db,'naejeonArrange',`game${game}`));
+  const savedArrange = arrangeSnap.exists() ? arrangeSnap.data().players || [] : [];
+  const savedMap = {};
+  savedArrange.forEach(p=>{ savedMap[p.uid]=p.loc; });
+
+  // 신청자 목록 구성 (저장된 배치 위치 복원)
+  const players = [];
+  activeUids.forEach(uid=>{
+    const u = allApplicants[uid];
+    const savedLoc = savedMap[uid] || 'pool';
+    players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,main:u.main||'',sub:u.sub||'',loc:savedLoc});
+  });
+
+  if(!players.length){ showToast('신청자가 없습니다'); return; }
+  njPlayers[game] = players;
   renderNjPlayers(game);
-  showToast(newPlayers.length ? `신규 ${newPlayers.length}명 추가됐습니다` : '최신 상태로 동기화됐습니다');
+  showToast('배치 불러오기 완료!');
 };
 
-window.njResetArrange = (game) => {
+window.njResetArrange = async (game) => {
   njPlayers[game] = njPlayers[game].map(p=>({...p, loc:'pool'}));
   renderNjPlayers(game);
+  await njSaveArrange(game);
   showToast('배치가 초기화됐습니다');
 };
 
