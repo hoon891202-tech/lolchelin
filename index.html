@@ -1961,10 +1961,10 @@ let admAllMembers = []; // {name, html}
 let admPage = 1;
 const ADM_PER_PAGE = 10;
 
-function filterAdminMembers(){
+window.filterAdminMembers = function(){
   admPage = 1;
   renderAdminList();
-}
+};
 function renderAdminList(){
   const keyword = (document.getElementById('adm-member-search')?.value||'').trim().toLowerCase();
   const filtered = keyword
