@@ -769,7 +769,11 @@ select.inp option{background:#1e1e1e;}
   </div>
   <div class="card">
     <div class="card-header"><span class="card-icon">⚙️</span><span class="card-title">회원 관리</span><span class="card-note">관리자 전용</span><button id="show-inactive-btn" class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="toggleShowInactive()">탈퇴 회원 보기</button></div>
+    <div style="padding:10px 14px 0;">
+      <input id="adm-member-search" type="text" class="inp" placeholder="🔍 이름/닉네임으로 검색..." style="width:100%;font-size:13px;" oninput="filterAdminMembers()">
+    </div>
     <div id="admin-list" style="padding:14px;"><div class="loading">불러오는 중...</div></div>
+    <div id="adm-pagination" style="display:flex;justify-content:center;align-items:center;gap:6px;padding:10px 14px;flex-wrap:wrap;"></div>
   </div>
 </div>
 </div>
@@ -1953,6 +1957,39 @@ window.findMyPw = async () => {
   }
 };
 
+let admAllMembers = []; // {name, html}
+let admPage = 1;
+const ADM_PER_PAGE = 10;
+
+function filterAdminMembers(){
+  admPage = 1;
+  renderAdminList();
+}
+function renderAdminList(){
+  const keyword = (document.getElementById('adm-member-search')?.value||'').trim().toLowerCase();
+  const filtered = keyword
+    ? admAllMembers.filter(m => m.name.toLowerCase().includes(keyword))
+    : admAllMembers;
+  const total = filtered.length;
+  const pages = Math.max(1, Math.ceil(total / ADM_PER_PAGE));
+  admPage = Math.min(admPage, pages);
+  const start = (admPage-1)*ADM_PER_PAGE;
+  const slice = filtered.slice(start, start+ADM_PER_PAGE);
+  const el = document.getElementById('admin-list');
+  el.innerHTML = slice.map(m=>m.html).join('') || '<div class="empty-hint">검색 결과가 없습니다</div>';
+  // 페이지네이션
+  const pg = document.getElementById('adm-pagination');
+  if(pages <= 1){ pg.innerHTML=''; return; }
+  let pgHtml = `<button class="btn btn-ghost btn-sm" style="min-width:32px;" onclick="admGoPage(${admPage-1})" ${admPage===1?'disabled':''}>‹</button>`;
+  for(let i=1;i<=pages;i++){
+    pgHtml += `<button class="btn btn-sm" style="min-width:32px;${i===admPage?'background:var(--gold);color:#1a1a2e;':'background:var(--bg3);color:var(--text-mid);'}" onclick="admGoPage(${i})">${i}</button>`;
+  }
+  pgHtml += `<button class="btn btn-ghost btn-sm" style="min-width:32px;" onclick="admGoPage(${admPage+1})" ${admPage===pages?'disabled':''}>›</button>`;
+  pgHtml += `<span style="font-size:11px;color:var(--text-dim);margin-left:4px;">${total}명</span>`;
+  pg.innerHTML = pgHtml;
+}
+window.admGoPage = (p) => { admPage=p; renderAdminList(); };
+
 async function loadAdmin(){
   if(!isAdmin) return;
   const el = document.getElementById('admin-list');
@@ -1977,7 +2014,7 @@ async function loadAdmin(){
     const sel = document.getElementById('adm-target-uid');
     sel.innerHTML = '<option value="">회원 선택</option>';
     snap.forEach(d=>{ if(d.data().active){ const opt=document.createElement('option'); opt.value=d.id; opt.textContent=d.data().nick; sel.appendChild(opt); }});
-    let html = '';
+    admAllMembers = [];
     for(const d of snap.docs){
       const u = d.data();
       if(!u.active && !showInactiveMembers) continue; // 탈퇴 회원 숨김
@@ -2001,7 +2038,7 @@ async function loadAdmin(){
       const restUsed = u.restUsedThisPeriod || 0;
       const restLabel = isResting ? `😴 휴식중 (${u.restFrom} ~ ${restEndStr(u.restFrom)})` : '';
       const restPeriodLabel = `휴식기 ${restUsed}/2회`;
-      html += `<div class="admin-member-row" id="admrow-${d.id}" style="${isResting?'border-color:#404060;opacity:0.85;':''}">
+      const memberHtml = `<div class="admin-member-row" id="admrow-${d.id}" style="${isResting?'border-color:#404060;opacity:0.85;':''}">
         <div style="flex:1;min-width:120px;">
           <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
             <span class="adm-name">${u.realname||u.nick} ${u.birthyear?u.birthyear+'년생 ':''}<span style="font-size:12px;color:var(--text-mid);">(${u.nick})</span></span>
@@ -2045,8 +2082,12 @@ async function loadAdmin(){
           <button class="adm-btn" style="border-color:#5a3a7a;color:#bb88ee;" onclick="adminResetPassword('${u.email||''}','${u.realname||u.nick}')">🔑 비번재설정</button>
         </div>
       </div>`;
+      admAllMembers.push({ name: (u.realname||u.nick||'') + ' ' + (u.nick||''), html: memberHtml });
     }
-    el.innerHTML = html || '<div class="empty-hint">회원이 없습니다</div>';
+    // 가나다 정렬
+    admAllMembers.sort((a,b) => a.name.localeCompare(b.name, 'ko'));
+    admPage = 1;
+    renderAdminList();
   } catch(e){
     console.error('loadAdmin error:', e);
     el.innerHTML=`<div class="empty-hint">불러오기 실패: ${e.message}<br><br>
