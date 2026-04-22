@@ -800,7 +800,7 @@ select.inp option{background:#1e1e1e;}
     </div>
   </div>
   <div class="card">
-    <div class="card-header"><span class="card-icon">⚙️</span><span class="card-title">회원 관리</span><span class="card-note">관리자 전용</span><button id="show-inactive-btn" class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="toggleShowInactive()">탈퇴 회원 보기</button></div>
+    <div class="card-header"><span class="card-icon">⚙️</span><span class="card-title">회원 관리</span><span class="card-note">관리자 전용</span><button id="show-inactive-btn" class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="toggleShowInactive()">탈퇴 회원 보기</button><button id="adm-save-all-btn" class="btn btn-sm" style="margin-left:auto;background:#1a2a3a;border:1px solid #3a5a8a;color:#88aacc;" onclick="adminSaveAllMemos()">📝 메모 일괄저장</button></div>
     <div style="padding:10px 14px 0;">
       <input id="adm-member-search" type="text" class="inp" placeholder="🔍 이름/닉네임으로 검색..." style="width:100%;font-size:13px;" oninput="filterAdminMembers()">
     </div>
@@ -1989,9 +1989,31 @@ window.findMyPw = async () => {
   }
 };
 
-let admAllMembers = []; // {name, html}
+let admAllMembers = []; // {name, html, uid}
 let admPage = 1;
 const ADM_PER_PAGE = 10;
+let admMemoChanges = {}; // {uid: {balanceTier, adminMemo}}
+
+window.admMemoChange = (uid) => {
+  const bt = document.getElementById(`btier-${uid}`)?.value||'';
+  const am = document.getElementById(`amemo-${uid}`)?.value||'';
+  admMemoChanges[uid] = {balanceTier: bt.trim(), adminMemo: am.trim()};
+  const btn = document.getElementById('adm-save-all-btn');
+  if(btn){ const cnt = Object.keys(admMemoChanges).length; btn.textContent = `📝 메모 일괄저장 (${cnt}건)`; btn.style.borderColor='#ff8800'; btn.style.color='#ffaa44'; }
+};
+window.adminSaveAllMemos = async () => {
+  const entries = Object.entries(admMemoChanges);
+  if(!entries.length){ showToast('변경된 내용이 없습니다'); return; }
+  const savedPage = admPage;
+  for(const [uid, data] of entries){
+    await updateDoc(doc(db,'users',uid),{ balanceTier: data.balanceTier, adminMemo: data.adminMemo });
+  }
+  admMemoChanges = {};
+  showToast(`✅ ${entries.length}명 메모 저장됐습니다`);
+  await loadAdmin();
+  admPage = savedPage;
+  renderAdminList();
+};
 
 window.filterAdminMembers = function(){
   admPage = 1;
@@ -2098,9 +2120,8 @@ async function loadAdmin(){
           </div>
           ${u.adminMemo?`<div style="font-size:11px;color:#bbaa88;margin-top:2px;">📝 ${u.adminMemo}</div>`:''}
           <div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap;">
-            <input id="btier-${d.id}" type="text" class="inp" placeholder="밸런스 티어" value="${u.balanceTier||''}" style="width:90px;font-size:11px;padding:3px 6px;">
-            <input id="amemo-${d.id}" type="text" class="inp" placeholder="기타 메모" value="${u.adminMemo||''}" style="flex:1;min-width:100px;font-size:11px;padding:3px 6px;">
-            <button class="adm-btn" style="border-color:#3a5a8a;color:#88aadd;" onclick="adminSaveMemo('${d.id}')">저장</button>
+            <input id="btier-${d.id}" type="text" class="inp" placeholder="밸런스 티어" value="${u.balanceTier||''}" style="width:90px;font-size:11px;padding:3px 6px;" oninput="admMemoChange('${d.id}')">
+            <input id="amemo-${d.id}" type="text" class="inp" placeholder="기타 메모" value="${u.adminMemo||''}" style="flex:1;min-width:100px;font-size:11px;padding:3px 6px;" oninput="admMemoChange('${d.id}')">
           </div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;">
@@ -2130,7 +2151,7 @@ async function loadAdmin(){
           <button class="adm-btn" style="border-color:#5a3a7a;color:#bb88ee;" onclick="adminResetPassword('${u.email||''}','${u.realname||u.nick}')">🔑 비번재설정</button>
         </div>
       </div>`;
-      admAllMembers.push({ name: (u.realname||u.nick||'') + ' ' + (u.nick||''), html: memberHtml });
+      admAllMembers.push({ name: (u.realname||u.nick||'') + ' ' + (u.nick||''), html: memberHtml, uid: d.id });
     }
     // 가나다 정렬
     admAllMembers.sort((a,b) => a.name.localeCompare(b.name, 'ko'));
