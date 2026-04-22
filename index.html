@@ -784,6 +784,18 @@ select.inp option{background:#1e1e1e;}
     </div>
   </div>
   <div class="card">
+    <div class="card-header"><span class="card-icon">⚠️</span><span class="card-title">이달 자동 경고</span><span class="card-note">당월 가입·휴식기 제외 / 2pt 미만</span></div>
+    <div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px;">
+      <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">
+        • 당월 가입자 제외<br>
+        • 현재 휴식기 중인 회원 제외<br>
+        • 이번 달 획득 포인트 <b style="color:#ff8800;">2pt 미만</b> 대상자에게 경고 부여
+      </div>
+      <div id="auto-warn-preview"></div>
+      <button class="btn btn-sm" style="background:#3a1a1a;border:1px solid #ff5555;color:#ff8888;" onclick="calcAndGiveWarning()">⚠️ 2pt 미만 경고 자동 부여</button>
+    </div>
+  </div>
+  <div class="card">
     <div class="card-header"><span class="card-icon">⚙️</span><span class="card-title">회원 관리</span><span class="card-note">관리자 전용</span><button id="show-inactive-btn" class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="toggleShowInactive()">탈퇴 회원 보기</button></div>
     <div style="padding:10px 14px 0;">
       <input id="adm-member-search" type="text" class="inp" placeholder="🔍 이름/닉네임으로 검색..." style="width:100%;font-size:13px;" oninput="filterAdminMembers()">
@@ -2068,7 +2080,14 @@ async function loadAdmin(){
           </div>
           <div style="display:flex;gap:6px;align-items:center;margin-top:3px;flex-wrap:wrap;">
             <span class="tb t${u.tier}" style="font-size:10px;">${TIER_NAMES[u.tier]||u.tier}</span>
+            ${u.balanceTier?`<span style="font-size:10px;background:#2a3a5a;color:#88bbff;border:1px solid #4a6a9a55;padding:1px 6px;border-radius:10px;">밸 ${u.balanceTier}</span>`:''}
             <span style="font-size:11px;color:var(--text-dim);">${u.main||''}${u.sub?' / '+(u.sub==='all'?'상관없음':u.sub):''}</span>
+          </div>
+          ${u.adminMemo?`<div style="font-size:11px;color:#bbaa88;margin-top:2px;">📝 ${u.adminMemo}</div>`:''}
+          <div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap;">
+            <input id="btier-${d.id}" type="text" class="inp" placeholder="밸런스 티어" value="${u.balanceTier||''}" style="width:90px;font-size:11px;padding:3px 6px;">
+            <input id="amemo-${d.id}" type="text" class="inp" placeholder="기타 메모" value="${u.adminMemo||''}" style="flex:1;min-width:100px;font-size:11px;padding:3px 6px;">
+            <button class="adm-btn" style="border-color:#3a5a8a;color:#88aadd;" onclick="adminSaveMemo('${d.id}')">저장</button>
           </div>
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0;">
@@ -2317,6 +2336,59 @@ window.adminRestore = async (uid, nick) => {
   if(!confirm(`${nick}님을 복구하시겠습니까?`)) return;
   await updateDoc(doc(db,'users',uid),{active:true});
   showToast(`${nick}님 복구됨`); loadAdmin();
+};
+window.adminSaveMemo = async (uid) => {
+  const bt = (document.getElementById(`btier-${uid}`)?.value||'').trim();
+  const am = (document.getElementById(`amemo-${uid}`)?.value||'').trim();
+  await updateDoc(doc(db,'users',uid),{ balanceTier: bt, adminMemo: am });
+  showToast('메모 저장됐습니다'); loadAdmin();
+};
+window.calcAndGiveWarning = async () => {
+  const month = ym(new Date());
+  const [yr, mo] = month.split('-').map(Number);
+  const monthStart = `${yr}-${String(mo).padStart(2,'0')}-01`;
+  const preview = document.getElementById('auto-warn-preview');
+  preview.innerHTML = '<div class="loading" style="font-size:12px;">대상자 확인 중...</div>';
+  const usersSnap = await getDocs(collection(db,'users'));
+  const targets = [];
+  for(const d of usersSnap.docs){
+    const u = d.data();
+    if(!u.active) continue;
+    // 당월 가입자 제외 (createdAt 기준)
+    if(u.createdAt && u.createdAt.slice(0,10) >= monthStart) continue;
+    // 현재 휴식기 중인 회원 제외
+    if(u.restActive && u.restFrom) continue;
+    // 포인트 확인
+    const recSnap = await getDocs(query(collection(db,'records'), where('uid','==',d.id), where('month','==',month)));
+    let pts = 0;
+    recSnap.forEach(r => pts += r.data().pts||0);
+    if(pts < 2) targets.push({uid:d.id, nick:u.nick, realname:u.realname||'', pts, warnings:u.warnings||0});
+  }
+  if(!targets.length){
+    preview.innerHTML = '<div style="font-size:12px;color:#40c070;padding:4px 0;">✅ 경고 대상자가 없습니다</div>';
+    return;
+  }
+  preview.innerHTML = `<div style="background:var(--bg3);border:1px solid #ff5555aa;border-radius:8px;padding:10px;font-size:12px;">
+    <div style="color:#ff8888;margin-bottom:6px;font-weight:500;">⚠️ 경고 대상자 ${targets.length}명</div>
+    ${targets.map(t=>`<div style="color:var(--text-mid);padding:2px 0;">${t.realname||t.nick} — <span style="color:#ff8800;">${t.pts}pt</span></div>`).join('')}
+  </div>`;
+  if(!confirm(`경고 대상자 ${targets.length}명:\n${targets.map(t=>`${t.realname||t.nick} (${t.pts}pt)`).join('\n')}\n\n경고를 일괄 부여하시겠습니까?`)) return;
+  for(const t of targets){
+    const next = Math.min((t.warnings||0)+1, 3);
+    const updates = {warnings:next, lastWarnDate:todayStr()};
+    if(next>=3) updates.status='suspended';
+    else if(next>=2) updates.status='disqualified';
+    else updates.status='active';
+    await updateDoc(doc(db,'users',t.uid), updates);
+    await addDoc(collection(db,'warnlogs'),{
+      uid:t.uid, nick:t.nick, warnings:next,
+      reason:`${month} 당월 2pt 미만 자동 경고`, month,
+      date:todayStr(), createdAt:new Date().toISOString(), issuedBy:currentUser.uid
+    });
+  }
+  showToast(`✅ ${targets.length}명 경고 부여 완료`);
+  preview.innerHTML = '';
+  loadAdmin();
 };
 window.adminResetPassword = async (email, name) => {
   if(!email){ showToast('이메일 정보가 없습니다'); return; }
@@ -2725,11 +2797,15 @@ async function njAutoRestoreArrange(game){
     const savedMap = {};
     savedArrange.forEach(p=>{ savedMap[p.uid]=p.loc; });
 
+    const usersSnap3 = await getDocs(collection(db,'users'));
+    const balanceMap2 = {};
+    usersSnap3.forEach(d=>{ balanceMap2[d.id] = d.data().balanceTier||''; });
+
     const players = [];
     activeUids.forEach(uid=>{
       const u = allApplicants[uid];
       const savedLoc = savedMap[uid] || 'pool';
-      players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,main:u.main||'',sub:u.sub||'',loc:savedLoc});
+      players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,main:u.main||'',sub:u.sub||'',loc:savedLoc,balanceTier:balanceMap2[uid]||''});
     });
     njPlayers[game] = players;
     renderNjPlayers(game);
@@ -2826,6 +2902,7 @@ function njCard(p, game){
     style="background:var(--bg4);border:1px solid var(--border);border-radius:5px;padding:5px 7px;cursor:grab;user-select:none;font-size:12px;display:flex;align-items:center;gap:5px;"
     onmouseover="this.style.borderColor='#8a3030'" onmouseout="this.style.borderColor='var(--border)'">
     <span class="tb t${p.tier}" style="font-size:10px;">${TIER_NAMES[p.tier]||p.tier}</span>
+    ${isAdmin && p.balanceTier ? `<span style="font-size:10px;background:#1a2a4a;color:#88bbff;border:1px solid #3a5a8a;padding:1px 5px;border-radius:8px;flex-shrink:0;">밸 ${p.balanceTier}</span>` : ''}
     <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.realname||p.nick}</span>
     <span style="font-size:10px;color:var(--text-dim);">${p.main||''}${p.sub&&p.sub!=='all'?' / '+p.sub:p.sub==='all'?' / 무관':''}</span>
   </div>`;
@@ -2894,12 +2971,17 @@ window.njLoadTeam = async (game) => {
   const savedMap = {};
   savedArrange.forEach(p=>{ savedMap[p.uid]=p.loc; });
 
+  // balanceTier 가져오기
+  const usersSnap2 = await getDocs(collection(db,'users'));
+  const balanceMap = {};
+  usersSnap2.forEach(d=>{ balanceMap[d.id] = d.data().balanceTier||''; });
+
   // 신청자 목록 구성 (저장된 배치 위치 복원)
   const players = [];
   activeUids.forEach(uid=>{
     const u = allApplicants[uid];
     const savedLoc = savedMap[uid] || 'pool';
-    players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,main:u.main||'',sub:u.sub||'',loc:savedLoc});
+    players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,main:u.main||'',sub:u.sub||'',loc:savedLoc,balanceTier:balanceMap[uid]||''});
   });
 
   if(!players.length){ showToast('신청자가 없습니다'); return; }
@@ -3358,7 +3440,7 @@ window.loadDraftMembers = async () => {
   if(!appliedUids.size){ renderDraft(); showToast('신청자가 없습니다'); return; }
   const snap = await getDocs(collection(db,'users'));
   const allApplicants = {};
-  snap.forEach(d=>{ const u=d.data(); if(u.active && appliedUids.has(d.id)) allApplicants[d.id]={id:d.id,...u}; });
+  snap.forEach(d=>{ const u=d.data(); if(u.active && appliedUids.has(d.id)) allApplicants[d.id]={id:d.id,...u, balanceTier:u.balanceTier||''}; });
   // 취소자 제거 (기존 배치 유지)
   draftPlayers = draftPlayers.filter(p => appliedUids.has(p.id));
   // 신규자만 추가
@@ -3394,6 +3476,7 @@ function draftCard(p){
     <div style="font-size:10px;color:var(--text-dim);">${p.birthyear?p.birthyear+'년생 ':''}<span style="color:var(--text-mid);">(${p.nick})</span></div>
     <div style="display:flex;align-items:center;justify-content:space-between;">
       <span class="tb t${p.tier}">${TIER_NAMES[p.tier]||p.tier}</span>
+      ${isAdmin && p.balanceTier ? `<span style="font-size:10px;background:#1a2a4a;color:#88bbff;border:1px solid #3a5a8a;padding:1px 5px;border-radius:8px;">밸 ${p.balanceTier}</span>` : ''}
       <span style="font-size:11px;color:var(--gold-light);font-weight:700;">${pts}pt</span>
     </div>
     ${p.main?`<div style="font-size:10px;color:var(--text-dim);">${p.main}${p.sub?' / '+(p.sub==='all'?'all':p.sub):''}</div>`:''}
