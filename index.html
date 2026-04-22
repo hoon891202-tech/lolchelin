@@ -787,9 +787,13 @@ select.inp option{background:#1e1e1e;}
     <div class="card-header"><span class="card-icon">⚠️</span><span class="card-title">이달 자동 경고</span><span class="card-note">당월 가입·휴식기 제외 / 2pt 미만</span></div>
     <div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px;">
       <div style="font-size:12px;color:var(--text-dim);line-height:1.6;">
-        • 당월 가입자 제외<br>
+        • 선택 월 가입자 제외<br>
         • 현재 휴식기 중인 회원 제외<br>
-        • 이번 달 획득 포인트 <b style="color:#ff8800;">2pt 미만</b> 대상자에게 경고 부여
+        • 선택 월 획득 포인트 <b style="color:#ff8800;">2pt 미만</b> 대상자에게 경고 부여
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:12px;color:var(--text-dim);">대상 월:</span>
+        <select id="auto-warn-month-select" class="inp btn-sm" style="width:110px;"></select>
       </div>
       <div id="auto-warn-preview"></div>
       <button class="btn btn-sm" style="background:#3a1a1a;border:1px solid #ff5555;color:#ff8888;" onclick="calcAndGiveWarning()">⚠️ 2pt 미만 경고 자동 부여</button>
@@ -2035,6 +2039,15 @@ async function loadAdmin(){
       kingMonthSel.appendChild(opt);
     }
   }
+  const warnMonthSel = document.getElementById('auto-warn-month-select');
+  if(warnMonthSel && !warnMonthSel.options.length){
+    const now3 = new Date();
+    const start3 = new Date(2026, 2, 1);
+    for(let d=new Date(now3.getFullYear(),now3.getMonth(),1); d>=start3; d.setMonth(d.getMonth()-1)){
+      const opt=document.createElement('option'); opt.value=ym(d); opt.textContent=`${d.getFullYear()}년 ${d.getMonth()+1}월`;
+      warnMonthSel.appendChild(opt);
+    }
+  }
   try {
     const snap = await getDocs(collection(db,'users'));
     const now = new Date(); const month = ym(now);
@@ -2344,7 +2357,9 @@ window.adminSaveMemo = async (uid) => {
   showToast('메모 저장됐습니다'); loadAdmin();
 };
 window.calcAndGiveWarning = async () => {
-  const month = ym(new Date());
+  const sel = document.getElementById('auto-warn-month-select');
+  const month = sel ? sel.value : ym(new Date());
+  if(!month){ showToast('대상 월을 선택해주세요'); return; }
   const [yr, mo] = month.split('-').map(Number);
   const monthStart = `${yr}-${String(mo).padStart(2,'0')}-01`;
   const preview = document.getElementById('auto-warn-preview');
