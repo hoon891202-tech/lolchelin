@@ -2351,16 +2351,27 @@ window.adminRestore = async (uid, nick) => {
   showToast(`${nick}님 복구됨`); loadAdmin();
 };
 window.adminSaveMemo = async (uid) => {
+  const savedPage = admPage;
   const bt = (document.getElementById(`btier-${uid}`)?.value||'').trim();
   const am = (document.getElementById(`amemo-${uid}`)?.value||'').trim();
   await updateDoc(doc(db,'users',uid),{ balanceTier: bt, adminMemo: am });
-  showToast('메모 저장됐습니다'); loadAdmin();
+  showToast('메모 저장됐습니다');
+  await loadAdmin();
+  admPage = savedPage;
+  renderAdminList();
 };
 window.calcAndGiveWarning = async () => {
   const sel = document.getElementById('auto-warn-month-select');
   const month = sel ? sel.value : ym(new Date());
   if(!month){ showToast('대상 월을 선택해주세요'); return; }
   const [yr, mo] = month.split('-').map(Number);
+  // 선택 월 말일이 지나야 실행 가능
+  const lastDayOfMonth = new Date(yr, mo, 0); // mo월의 마지막 날
+  const today = new Date(); today.setHours(0,0,0,0);
+  if(today <= lastDayOfMonth){
+    showToast(`${yr}년 ${mo}월은 아직 종료되지 않았습니다 (말일: ${mo}/${lastDayOfMonth.getDate()})`);
+    return;
+  }
   const monthStart = `${yr}-${String(mo).padStart(2,'0')}-01`;
   const preview = document.getElementById('auto-warn-preview');
   preview.innerHTML = '<div class="loading" style="font-size:12px;">대상자 확인 중...</div>';
