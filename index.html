@@ -2940,6 +2940,7 @@ function renderNjTeamBuilder(game){
       <span style="font-size:12px;color:var(--text-dim);">결과 입력:</span>
       <button class="btn btn-sm" style="background:#3a1010;color:#ff5555;border:1px solid #ff555544;" onclick="njRecordResult(${game},'t1')">🔴 ${tNames[0]} 승</button>
       <button class="btn btn-sm" style="background:#101a3a;color:#5090d0;border:1px solid #5090d044;" onclick="njRecordResult(${game},'t2')">🔵 ${tNames[1]} 승</button>
+      <button class="btn btn-sm" style="background:#1a2a1a;color:#66cc66;border:1px solid #44aa4444;" onclick="njCopyTeamText(${game})">📋 팀 공유</button>
     </div>`;
   renderNjPlayers(game);
 }
@@ -3042,6 +3043,30 @@ window.njResetArrange = async (game) => {
   renderNjPlayers(game);
   await njSaveArrange(game);
   showToast('배치가 초기화됐습니다');
+};
+
+window.njCopyTeamText = (game) => {
+  const tNames = game===1?['1팀','2팀']:['3팀','4팀'];
+  const players = njPlayers[game] || [];
+  const lines = [`📢 내전${game} 팀 구성`, ''];
+  ['t1','t2'].forEach((tk, ti) => {
+    const teamEmoji = ti===0 ? '🔴' : '🔵';
+    lines.push(`${teamEmoji} ${tNames[ti]}`);
+    lines.push('─────────────────');
+    NJ_POSITIONS.forEach(pos => {
+      const p = players.find(pl => pl.loc===`${tk}-${pos}`);
+      const name = p ? (p.realname||p.nick) : '-';
+      const tier = p ? (TIER_NAMES[p.tier]||p.tier) : '-';
+      lines.push(`${pos} | ${name} | ${tier}`);
+    });
+    lines.push('');
+  });
+  const text = lines.join('\n').trimEnd();
+  navigator.clipboard.writeText(text).then(()=>{
+    showToast('팀 구성이 클립보드에 복사됐습니다 📋');
+  }).catch(()=>{
+    showToast('복사 실패: 클립보드 접근이 차단됐습니다');
+  });
 };
 
 window.njClearApply = async (game) => {
