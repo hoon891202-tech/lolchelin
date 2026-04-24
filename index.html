@@ -3269,9 +3269,9 @@ async function jpRenderSlotCard(n){
     }
 
     const searchBox = (isHost && !isFull) ? `
-      <div style="margin-top:8px;position:relative;">
+      <div style="margin-top:8px;">
         <input id="jp-search-${n}" class="inp" style="font-size:12px;width:100%;box-sizing:border-box;" placeholder="🔍 멤버 검색해서 추가 (이름/닉네임)..." oninput="jpSearchUser(${n})" autocomplete="off">
-        <div id="jp-search-res-${n}" style="display:none;position:absolute;left:0;right:0;background:#1e1e2e;border:2px solid #5566aa;border-radius:8px;z-index:50;max-height:180px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 16px rgba(0,0,0,0.6);"></div>
+        <div id="jp-search-res-${n}" style="display:none;margin-top:4px;border:1px solid #5566aa;border-radius:8px;overflow:hidden;"></div>
       </div>` : '';
 
     const adminBtns = isAdmin ? `<div style="margin-top:6px;"><button onclick="jpAdminClose(${n})" style="font-size:11px;padding:2px 8px;background:#3a1010;border:1px solid #6a2020;color:#ff6666;border-radius:4px;cursor:pointer;">🗑 방 초기화</button></div>` : '';
@@ -3392,12 +3392,12 @@ window.jpSearchUser = (n) => {
   resEl.style.display='block';
   resEl.innerHTML = filtered.map(u => `
     <div onclick="jpAddSearchedUser(${n},'${u.uid}')"
-      style="padding:9px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);"
-      onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-      <span class="tb t${u.tier}" style="font-size:11px;">${TIER_NAMES[u.tier]||u.tier}</span>
-      <span style="font-size:14px;color:#ffffff;font-weight:500;">${u.realname||u.nick}</span>
-      <span style="color:#aaaaaa;font-size:12px;">(${u.nick})</span>
-      <span style="color:#aaaaaa;font-size:12px;margin-left:auto;">${u.main||''}</span>
+      style="padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid #333355;background:#1a1a2e;"
+      onmouseover="this.style.background='#2a2a4a'" onmouseout="this.style.background='#1a1a2e'">
+      <span class="tb t${u.tier}" style="font-size:12px;flex-shrink:0;">${TIER_NAMES[u.tier]||u.tier}</span>
+      <span style="font-size:15px;color:#ffffff;font-weight:600;flex:1;">${u.realname||u.nick}</span>
+      <span style="color:#9999cc;font-size:13px;">${u.nick}</span>
+      <span style="color:#7777aa;font-size:13px;">${u.main||''}</span>
     </div>`).join('');
 };
 
