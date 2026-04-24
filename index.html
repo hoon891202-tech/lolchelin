@@ -1067,7 +1067,7 @@ let statsSortDir = 'desc';
 function renderStatsTable() {
   const sorted = [...statsRows].sort((a,b) => {
     let va = a[statsSort], vb = b[statsSort];
-    if(statsSort === 'nick') { va = va||''; vb = vb||''; return statsSortDir==='asc' ? va.localeCompare(vb) : vb.localeCompare(va); }
+    if(statsSort === 'nick' || statsSort === 'main') { va = va||''; vb = vb||''; return statsSortDir==='asc' ? va.localeCompare(vb,'ko') : vb.localeCompare(va,'ko'); }
     if(statsSort === 'tier') { va = TIER_PTS_MAP[a.tier]||0; vb = TIER_PTS_MAP[b.tier]||0; }
     return statsSortDir==='asc' ? va-vb : vb-va;
   });
