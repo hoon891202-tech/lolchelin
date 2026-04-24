@@ -3271,7 +3271,7 @@ async function jpRenderSlotCard(n){
     const searchBox = (isHost && !isFull) ? `
       <div style="margin-top:8px;position:relative;">
         <input id="jp-search-${n}" class="inp" style="font-size:12px;width:100%;box-sizing:border-box;" placeholder="🔍 멤버 검색해서 추가 (이름/닉네임)..." oninput="jpSearchUser(${n})" autocomplete="off">
-        <div id="jp-search-res-${n}" style="display:none;position:absolute;left:0;right:0;background:#1e1e2e;border:2px solid #5566aa;border-radius:8px;z-index:50;max-height:260px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 16px rgba(0,0,0,0.6);"></div>
+        <div id="jp-search-res-${n}" style="display:none;position:absolute;left:0;right:0;background:#1e1e2e;border:2px solid #5566aa;border-radius:8px;z-index:50;max-height:180px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 16px rgba(0,0,0,0.6);"></div>
       </div>` : '';
 
     const adminBtns = isAdmin ? `<div style="margin-top:6px;"><button onclick="jpAdminClose(${n})" style="font-size:11px;padding:2px 8px;background:#3a1010;border:1px solid #6a2020;color:#ff6666;border-radius:4px;cursor:pointer;">🗑 방 초기화</button></div>` : '';
