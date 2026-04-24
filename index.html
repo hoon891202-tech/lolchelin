@@ -3237,11 +3237,13 @@ async function jpRenderSlotCard(n){
       const badge = i===0
         ? '<span style="font-size:10px;color:var(--gold);">👑</span>'
         : `<span style="font-size:10px;color:var(--text-dim);width:14px;text-align:center;">${i+1}</span>`;
+      const removeBtn = (isHost && i > 0) ? `<button onclick="jpRemoveMember(${n},'${m.uid}')" style="font-size:11px;padding:1px 6px;background:#3a1010;border:1px solid #6a2020;color:#ff6666;border-radius:4px;cursor:pointer;flex-shrink:0;">✕</button>` : '';
       return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">
         ${badge}
         <span class="tb t${m.tier}" style="font-size:10px;">${TIER_NAMES[m.tier]||m.tier}</span>
         <span style="flex:1;">${m.realname||m.nick}<span style="color:var(--text-dim);font-size:11px;margin-left:4px;">(${m.nick})</span></span>
         <span style="font-size:11px;color:var(--text-dim);">${m.main||''}</span>
+        ${removeBtn}
       </div>`;
     }).join('') || '<div style="font-size:12px;color:var(--text-dim);padding:4px 0;">신청자 없음</div>';
 
@@ -3269,7 +3271,7 @@ async function jpRenderSlotCard(n){
     const searchBox = (isHost && !isFull) ? `
       <div style="margin-top:8px;position:relative;">
         <input id="jp-search-${n}" class="inp" style="font-size:12px;width:100%;box-sizing:border-box;" placeholder="🔍 멤버 검색해서 추가 (이름/닉네임)..." oninput="jpSearchUser(${n})" autocomplete="off">
-        <div id="jp-search-res-${n}" style="display:none;position:absolute;left:0;right:0;background:var(--bg4);border:1px solid var(--border);border-radius:5px;z-index:50;max-height:160px;overflow-y:auto;margin-top:2px;"></div>
+        <div id="jp-search-res-${n}" style="display:none;position:absolute;left:0;right:0;background:#1e1e2e;border:2px solid #5566aa;border-radius:8px;z-index:50;max-height:260px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 16px rgba(0,0,0,0.6);"></div>
       </div>` : '';
 
     const adminBtns = isAdmin ? `<div style="margin-top:6px;"><button onclick="jpAdminClose(${n})" style="font-size:11px;padding:2px 8px;background:#3a1010;border:1px solid #6a2020;color:#ff6666;border-radius:4px;cursor:pointer;">🗑 방 초기화</button></div>` : '';
@@ -3390,13 +3392,27 @@ window.jpSearchUser = (n) => {
   resEl.style.display='block';
   resEl.innerHTML = filtered.map(u => `
     <div onclick="jpAddSearchedUser(${n},'${u.uid}')"
-      style="padding:7px 10px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border);"
+      style="padding:9px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);"
       onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background=''">
-      <span class="tb t${u.tier}" style="font-size:10px;">${TIER_NAMES[u.tier]||u.tier}</span>
-      <span>${u.realname||u.nick}</span>
-      <span style="color:var(--text-dim);font-size:11px;">(${u.nick})</span>
-      <span style="color:var(--text-dim);font-size:11px;margin-left:auto;">${u.main||''}</span>
+      <span class="tb t${u.tier}" style="font-size:11px;">${TIER_NAMES[u.tier]||u.tier}</span>
+      <span style="font-size:14px;color:#ffffff;font-weight:500;">${u.realname||u.nick}</span>
+      <span style="color:#aaaaaa;font-size:12px;">(${u.nick})</span>
+      <span style="color:#aaaaaa;font-size:12px;margin-left:auto;">${u.main||''}</span>
     </div>`).join('');
+};
+
+window.jpRemoveMember = async (n, uid) => {
+  const slotRef = doc(db,'jarPartySlots',`slot${n}`);
+  const snap = await getDoc(slotRef);
+  if(!snap.exists()) return;
+  const members = snap.data().members || [];
+  if(members[0]?.uid !== currentUser?.uid){ showToast('방장만 멤버를 제거할 수 있습니다'); return; }
+  const target = members.find(m=>m.uid===uid);
+  if(!target) return;
+  if(!confirm(`${target.realname||target.nick}님을 방에서 제거하시겠습니까?`)) return;
+  await updateDoc(slotRef, {members: members.filter(m=>m.uid!==uid)});
+  showToast(`${target.realname||target.nick}님을 제거했습니다`);
+  await jpRenderSlots();
 };
 
 window.jpAddSearchedUser = async (n, uid) => {
