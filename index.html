@@ -1102,7 +1102,7 @@ function renderLolsulpam(members) {
           ${imgSrc?`<img src="${imgSrc}" onerror="this.style.display='none'" style="width:54px;height:54px;border-radius:8px;border:1px solid var(--border);object-fit:cover;display:block;margin:0 auto 3px;">`:
           `<div style="width:54px;height:54px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);margin:0 auto 3px;"></div>`}
           <div style="font-size:10px;color:var(--text-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
-          <div style="font-size:10px;color:var(--gold-light);">M${c.level}</div>
+          <div style="font-size:10px;color:var(--gold-light);">${c.games}판</div>
         </div>`;
       }).join('');
       return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;">
