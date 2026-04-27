@@ -1,0 +1,26 @@
+{
+  "name": "롤슐랭 LOLCHELIN",
+  "short_name": "롤슐랭",
+  "description": "LoL 내전 커뮤니티 관리 앱",
+  "start_url": "/lolchelin/",
+  "scope": "/lolchelin/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#2c3150",
+  "theme_color": "#cc1a1a",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
