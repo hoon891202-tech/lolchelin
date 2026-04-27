@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -181,13 +181,6 @@ select.inp option{background:#1e1e1e;}
 .loading{text-align:center;padding:40px;color:var(--text-dim);font-size:13px;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#333;color:var(--text);padding:10px 20px;border-radius:8px;font-size:13px;z-index:300;opacity:0;transition:opacity 0.3s;pointer-events:none;}
 .toast.show{opacity:1;}
-/* ── 번개 ── */
-.lt-filter-tab{padding:7px 16px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border:1px solid var(--border);color:var(--text-dim);background:transparent;transition:all 0.2s;user-select:none;}
-.lt-filter-tab.active{background:var(--border2);color:var(--text);border-color:var(--border2);}
-.lt-tab{flex:1;padding:9px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;color:var(--text-dim);background:transparent;border:none;font-family:'Noto Sans KR',sans-serif;transition:all 0.2s;}
-.lt-tab.active{background:var(--bg3);color:var(--text);}
-.lt-tab-content{display:none;}
-.lt-tab-content.active{display:block;}
 </style>
 </head>
 <body>
@@ -274,9 +267,9 @@ select.inp option{background:#1e1e1e;}
   </div>
   <div class="nav-tab active" onclick="showPage('home',this)">🏠 홈</div>
   <div class="nav-tab" onclick="showPage('stats',this)">📊 통계</div>
+  <div class="nav-tab" onclick="showPage('lolsulpam',this)">🃏 롤슐팸</div>
   <div class="nav-tab" onclick="showPage('naejeon',this)">⚔️ 내전</div>
   <div class="nav-tab" onclick="showPage('jarparty',this)">🎮 자랭파티</div>
-  <div class="nav-tab" onclick="showPage('lightning',this)">⚡ 번개</div>
   <div class="nav-tab" onclick="showPage('regs',this)">📜 운영 규정</div>
   <div class="nav-tab" onclick="showPage('rule',this)">📋 드래프트 룰북</div>
   <div class="nav-tab" onclick="showPage('apply',this)">✋ 드래프트 신청</div>
@@ -331,6 +324,20 @@ select.inp option{background:#1e1e1e;}
       </select>
     </div>
     <div id="stats-table" style="overflow-x:auto;"><div class="loading">불러오는 중...</div></div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 롤슐팸 ══ -->
+<div id="page-lolsulpam" class="page">
+<div class="wrap">
+  <div class="card">
+    <div class="card-header">
+      <span class="card-icon">🃏</span><span class="card-title">롤슐팸</span>
+      <span class="card-note">매일 오전 7시 자동갱신</span>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="loadLolsulpam(true)">🔄</button>
+    </div>
+    <div id="lsp-grid" style="padding:16px;"></div>
   </div>
 </div>
 </div>
@@ -397,44 +404,6 @@ select.inp option{background:#1e1e1e;}
   </div>
 </div>
 </div>
-
-<!-- ══ 번개 ══ -->
-<div id="page-lightning" class="page">
-<div class="wrap">
-  <div id="lt-list-view">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-      <div style="font-size:18px;font-weight:800;">⚡ 번개</div>
-      <button id="lt-add-btn" class="btn btn-sm" style="background:#2a1a4a;border:1px solid #6a4a9a;color:#cc88ff;" onclick="openLtModal()">+ 번개 추가</button>
-    </div>
-    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
-      <div class="lt-filter-tab active" onclick="filterLt('all',this)">전체</div>
-      <div class="lt-filter-tab" onclick="filterLt('planned',this)">📅 예정</div>
-      <div class="lt-filter-tab" onclick="filterLt('completed',this)">✅ 완료</div>
-    </div>
-    <div id="lt-list"><div class="loading">불러오는 중...</div></div>
-  </div>
-  <div id="lt-detail" style="display:none;">
-    <button style="display:flex;align-items:center;gap:6px;color:var(--text-dim);background:none;border:none;cursor:pointer;margin-bottom:16px;font-size:14px;font-weight:600;padding:0;" onclick="showLightningList()">← 목록으로</button>
-    <div id="lt-info-card"></div>
-    <div style="display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:14px;">
-      <button class="lt-tab active" onclick="switchLtTab('info',this)">기본 정보</button>
-      <button class="lt-tab" onclick="switchLtTab('settle',this)">💰 정산</button>
-    </div>
-    <div class="lt-tab-content active" id="lttab-info">
-      <div id="lt-attend-section"></div>
-    </div>
-    <div class="lt-tab-content" id="lttab-settle">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <span style="font-weight:700;font-size:14px;">💰 경비 정산</span>
-        <button class="btn btn-sm" style="background:#1a3a1a;border:1px solid #4a7a4a;color:#88cc88;" onclick="openLtExpenseModal()">+ 경비 추가</button>
-      </div>
-      <div id="lt-expense-list"></div>
-      <div id="lt-settle-summary"></div>
-    </div>
-  </div>
-</div>
-</div>
-<div id="lt-modal-container"></div>
 
 <!-- ══ 운영 규정 ══ -->
 <div id="page-regs" class="page">
@@ -672,7 +641,7 @@ select.inp option{background:#1e1e1e;}
         </div>
       </div>
       <div style="border-top:1px solid var(--border);margin-top:10px;padding-top:10px;">
-        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;letter-spacing:1px;">💳 계좌 정보 (번개 정산 시 표시)</div>
+        <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;letter-spacing:1px;">💳 계좌 정보</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <input id="my-bank" class="inp" style="width:100px;" placeholder="은행 (예: 카카오)">
           <input id="my-account" class="inp" style="flex:1;min-width:140px;" placeholder="계좌번호">
@@ -1016,13 +985,13 @@ window.showPage = (id, el) => {
   document.getElementById('page-'+id).classList.add('active');
   el.classList.add('active');
   if(id==='stats') loadStats();
+  if(id==='lolsulpam') loadLolsulpam();
   if(id==='admin' && isAdmin) loadAdmin();
   if(id==='mypage') loadMyPage();
   if(id==='apply') loadApplyPage();
   if(id==='rule') loadRulePage();
   if(id==='naejeon') loadNaejeonPage();
   if(id==='jarparty') loadJarPartyPage();
-  if(id==='lightning') loadLightningPage();
   if(id==='regs') loadRegsPage();
 };
 
@@ -1047,6 +1016,16 @@ function getSubValue(selId, inputId){
   return sel.value;
 }
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
+
+// ── DATA DRAGON VERSION ──
+let ddVersion = '15.9.1';
+(async () => {
+  try {
+    const r = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
+    const v = await r.json();
+    ddVersion = v[0];
+  } catch(e) {}
+})();
 
 // ── RANKING ──
 const CACHE_TTL = 10 * 60 * 1000; // 10분
@@ -1100,6 +1079,81 @@ let statsRows = [];
 let statsSort = 'pts';
 let statsSortDir = 'desc';
 let statsCache = {}; // { [month]: { data, ts } }
+
+// ── 롤슐팸 ──
+let lspCache = null;
+
+function renderLolsulpam(members) {
+  const el = document.getElementById('lsp-grid');
+  if(!members.length){ el.innerHTML='<div class="empty-hint">등록된 멤버가 없습니다</div>'; return; }
+  const LANE_ICON = {top:'⬆',jg:'🌲',mid:'🎯',bot:'🏹',sup:'🛡',all:'✦'};
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;">
+    ${members.map(m=>{
+      const games = m.recentSoloMatches?.length||0;
+      const wins = m.recentSoloMatches?.filter(x=>x.win).length||0;
+      const wr = games>0 ? Math.round(wins/games*100) : null;
+      const wrColor = wr===null?'var(--text-dim)':wr>=60?'var(--green)':wr>=50?'var(--gold-light)':'#ff7070';
+      const recent5 = (m.recentSoloMatches||[]).slice(0,5);
+      const subLabel = m.sub==='all'?'상관없음':(m.sub||'-');
+      const laneIcon = k => LANE_ICON[k]||'';
+      const champImgs = (m.topChampions||[]).map(c=>{
+        const imgSrc = c.id ? `https://ddragon.leagueoflegends.com/cdn/${ddVersion}/img/champion/${c.id}.png` : '';
+        return `<div style="text-align:center;flex:1;">
+          ${imgSrc?`<img src="${imgSrc}" onerror="this.style.display='none'" style="width:54px;height:54px;border-radius:8px;border:1px solid var(--border);object-fit:cover;display:block;margin:0 auto 3px;">`:
+          `<div style="width:54px;height:54px;border-radius:8px;border:1px solid var(--border);background:var(--bg3);margin:0 auto 3px;"></div>`}
+          <div style="font-size:10px;color:var(--text-mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div>
+          <div style="font-size:10px;color:var(--gold-light);">M${c.level}</div>
+        </div>`;
+      }).join('');
+      return `<div style="background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;">
+          <div>
+            <div style="font-weight:500;font-size:14px;">${m.realname||m.nick}</div>
+            <div style="font-size:11px;color:var(--text-dim);">${m.realname?`(${m.nick})`:''}</div>
+          </div>
+          <div style="text-align:right;">${tierBadges(m.tier,m.currentTier,'12px',m.currentRank,m.currentLP)}</div>
+        </div>
+        ${champImgs?`<div style="display:flex;gap:8px;justify-content:flex-start;">${champImgs}</div>`:''}
+        <div style="display:flex;gap:16px;font-size:12px;color:var(--text-dim);">
+          <span>주라인 <span style="color:var(--text-mid);">${laneIcon(m.main)}${m.main||'-'}</span></span>
+          <span>부라인 <span style="color:var(--text-mid);">${laneIcon(m.sub)}${subLabel}</span></span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          ${wr!==null?`<span style="font-size:13px;font-weight:500;color:${wrColor};">${wr}%</span><span style="font-size:11px;color:var(--text-dim);">${wins}승${games-wins}패 (최근${games}판)</span>`:'<span style="font-size:11px;color:var(--text-dim);">전적 없음</span>'}
+          <div style="display:flex;gap:3px;margin-left:auto;">
+            ${recent5.map(r=>`<span style="font-size:10px;font-weight:700;padding:2px 5px;border-radius:4px;${r.win?'background:#1a3a1a;color:#66cc66;border:1px solid #2a6a2a;':'background:#3a1a1a;color:#ff7070;border:1px solid #6a2a2a;'}">${r.win?'W':'L'}</span>`).join('')}
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+window.loadLolsulpam = async (forceRefresh) => {
+  const el = document.getElementById('lsp-grid');
+  if(!forceRefresh && lspCache && Date.now()-lspCache.ts < CACHE_TTL){
+    renderLolsulpam(lspCache.data); return;
+  }
+  el.innerHTML = '<div class="loading">불러오는 중...</div>';
+  try {
+    const snap = await getDocs(query(collection(db,'users'), where('active','==',true)));
+    const members = [];
+    snap.forEach(d=>{
+      const u = d.data();
+      if(!u.nick) return;
+      members.push({
+        nick: u.nick, realname: u.realname||'', tier: u.tier||'U',
+        currentTier: u.currentTier||'', currentRank: u.currentRank||'', currentLP: u.currentLP??'',
+        main: u.main||'', sub: u.sub||'',
+        topChampions: u.topChampions||[],
+        recentSoloMatches: u.recentSoloMatches||[]
+      });
+    });
+    members.sort((a,b)=>(TIER_PTS_MAP[b.currentTier||b.tier]||0)-(TIER_PTS_MAP[a.currentTier||a.tier]||0));
+    lspCache = { data: members, ts: Date.now() };
+    renderLolsulpam(members);
+  } catch(e){ el.innerHTML='<div class="empty-hint">불러오기 실패: '+e.message+'</div>'; }
+};
 
 function renderStatsTable() {
   const sorted = [...statsRows].sort((a,b) => {
@@ -1185,7 +1239,7 @@ window.loadStats = async (forceRefresh) => {
       let pts=0,wins=0,loses=0,jarangGames=0;
       recSnap.forEach(r=>{ const rec=r.data(); pts+=rec.pts||0; if(rec.type==='naejeon'){ if(rec.result==='win')wins++;else loses++; } if(rec.type==='jarang') jarangGames+=rec.games||0; });
       const total=wins+loses;
-      rows.push({nick:u.nick,realname:u.realname||'',birthyear:u.birthyear||'',tier:u.tier,currentTier:u.currentTier||'',currentRank:u.currentRank||'',currentLP:u.currentLP??'',main:u.main||'',pts,wins,loses,total,jarangGames,wr:total>0?Math.round(wins/total*100):0});
+      rows.push({nick:u.nick,realname:u.realname||'',birthyear:u.birthyear||'',tier:u.tier,currentTier:u.currentTier||'',currentRank:u.currentRank||'',currentLP:u.currentLP??'',main:u.main||'',topChampions:u.topChampions||[],pts,wins,loses,total,jarangGames,wr:total>0?Math.round(wins/total*100):0});
     }
     statsCache[month] = { data: rows, ts: Date.now() };
     statsRows = rows;
@@ -1485,503 +1539,6 @@ window.withdrawMyAccount = async () => {
   }
 };
 
-// ══════════════════════════════════════════
-// ══ 번개 (LIGHTNING) ══
-// ══════════════════════════════════════════
-let ltFilter = 'all';
-let allLightnings = [];
-let ltUsers = {};
-let currentLtId = null;
-
-async function loadLightningPage() {
-  document.getElementById('lt-detail').style.display = 'none';
-  document.getElementById('lt-list-view').style.display = '';
-  document.getElementById('lt-list').innerHTML = '<div class="loading">불러오는 중...</div>';
-  try {
-    const [usersSnap, ltSnap] = await Promise.all([
-      getDocs(collection(db,'users')),
-      getDocs(query(collection(db,'lightnings'), orderBy('dateStart','desc')))
-    ]);
-    ltUsers = {};
-    usersSnap.forEach(d => { if(d.data().active) ltUsers[d.id] = d.data(); });
-    allLightnings = ltSnap.docs.map(d => ({id:d.id,...d.data()}));
-    renderLightnings();
-  } catch(e) { document.getElementById('lt-list').innerHTML = `<div style="color:var(--text-dim);padding:20px;">오류: ${e.message}</div>`; }
-}
-
-window.filterLt = (type, el) => {
-  ltFilter = type;
-  document.querySelectorAll('.lt-filter-tab').forEach(t => t.classList.remove('active'));
-  el.classList.add('active');
-  renderLightnings();
-};
-
-function ltEffectiveStatus(t) {
-  if(t.status === 'completed') return 'completed';
-  const end = t.dateEnd || t.dateStart;
-  if(end && end < todayStr()) return 'completed';
-  return 'planned';
-}
-
-function renderLightnings() {
-  const list = document.getElementById('lt-list');
-  let items = allLightnings;
-  if(ltFilter !== 'all') items = items.filter(t => ltEffectiveStatus(t) === ltFilter);
-  if(!items.length) {
-    list.innerHTML = `<div style="text-align:center;padding:40px 0;color:var(--text-dim);">⚡ 번개 일정이 없습니다.</div>`;
-    return;
-  }
-  list.innerHTML = items.map(t => `
-    <div class="card" style="cursor:pointer;" onclick="showLightningDetail('${t.id}')">
-      <div style="padding:14px;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <div style="flex:1;">
-            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;${ltEffectiveStatus(t)==='planned'?'background:#1a2a4a;color:#88aaff;':'background:#1a3a1a;color:#88cc88;'}">${ltEffectiveStatus(t)==='planned'?'📅 예정':'✅ 완료'}</span>
-            <div style="font-size:15px;font-weight:800;margin-top:8px;">${t.title||''}</div>
-            <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">📍 ${t.location||'-'} ${t.naverMapUrl?`<a href="${t.naverMapUrl}" target="_blank" rel="noopener" style="color:#4fc3f7;font-size:11px;text-decoration:none;" onclick="event.stopPropagation()">🗺️ 지도</a>`:''}</div>
-            <div style="font-size:12px;color:var(--text-dim);">📅 ${t.dateStart||''}${t.dateEnd&&t.dateEnd!==t.dateStart?' ~ '+t.dateEnd:''}</div>
-            ${t.chatUrl?`<div style="font-size:12px;margin-top:4px;"><a href="${t.chatUrl}" target="_blank" rel="noopener" style="color:#f0b040;text-decoration:none;" onclick="event.stopPropagation()">💬 오픈채팅 참여</a></div>`:''}
-          </div>
-          <span style="font-size:28px;margin-left:10px;">⚡</span>
-        </div>
-      </div>
-    </div>`).join('');
-}
-
-window.showLightningDetail = async (id) => {
-  currentLtId = id;
-  document.getElementById('lt-list-view').style.display = 'none';
-  document.getElementById('lt-detail').style.display = '';
-  const lt = allLightnings.find(t => t.id === id);
-  if(!lt) return;
-  document.getElementById('lt-info-card').innerHTML = `
-    <div class="card">
-      <div style="padding:14px;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
-          <div style="flex:1;">
-            <span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;${lt.status==='planned'?'background:#1a2a4a;color:#88aaff;':'background:#1a3a1a;color:#88cc88;'}">${lt.status==='planned'?'📅 예정':'✅ 완료'}</span>
-            <div style="font-size:20px;font-weight:800;margin-top:8px;">${lt.title||''}</div>
-            <div style="margin-top:10px;display:flex;flex-direction:column;gap:5px;">
-              <div style="font-size:13px;">📍 <strong>${lt.location||'-'}</strong> ${lt.naverMapUrl?`<a href="${lt.naverMapUrl}" target="_blank" rel="noopener" style="color:#4fc3f7;font-size:12px;text-decoration:none;margin-left:4px;">🗺️ 네이버 지도</a>`:''}</div>
-              <div style="font-size:13px;">📅 ${lt.dateStart||''}${lt.dateEnd&&lt.dateEnd!==lt.dateStart?' ~ '+lt.dateEnd:''}</div>
-              ${lt.chatUrl?`<div style="font-size:13px;"><a href="${lt.chatUrl}" target="_blank" rel="noopener" style="color:#f0b040;font-weight:700;text-decoration:none;">💬 오픈채팅 참여하기 →</a></div>`:''}
-              ${lt.description?`<div style="font-size:13px;color:var(--text-mid);line-height:1.7;margin-top:6px;white-space:pre-wrap;">${lt.description}</div>`:''}
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:6px;margin-left:10px;">
-            ${isAdmin&&lt.status!=='completed'&&ltEffectiveStatus(lt)==='completed'?`<button class="btn btn-sm" style="background:#1a3a1a;border:1px solid #4a7a4a;color:#88cc88;" onclick="completeLt('${id}')">✅ 완료 저장</button>`:''}
-            <button class="btn btn-sm" style="background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);" onclick="openLtModal('${id}')">수정</button>
-            ${isAdmin?`<button class="btn btn-sm" style="background:#3a1010;border:1px solid #6a2020;color:#ff6666;" onclick="deleteLt('${id}')">삭제</button>`:''}
-          </div>
-        </div>
-      </div>
-    </div>`;
-  switchLtTab('info', document.querySelector('.lt-tab'));
-  loadLtAttendance(id);
-  document.getElementById('lt-expense-list').innerHTML = '';
-  document.getElementById('lt-settle-summary').innerHTML = '';
-};
-
-window.showLightningList = () => {
-  document.getElementById('lt-list-view').style.display = '';
-  document.getElementById('lt-detail').style.display = 'none';
-  currentLtId = null;
-};
-
-window.switchLtTab = (tab, el) => {
-  document.querySelectorAll('.lt-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.lt-tab-content').forEach(t => t.classList.remove('active'));
-  if(el) el.classList.add('active');
-  else document.querySelector('.lt-tab')?.classList.add('active');
-  document.getElementById('lttab-'+tab)?.classList.add('active');
-  if(tab==='settle' && currentLtId) loadLtExpenses(currentLtId);
-};
-
-// ── 참석 ──
-async function loadLtAttendance(id) {
-  const sec = document.getElementById('lt-attend-section');
-  sec.innerHTML = '<div class="loading">불러오는 중...</div>';
-  try {
-    const snap = await getDocs(collection(db,'lightnings',id,'attendees'));
-    const att = {};
-    snap.docs.forEach(d => { att[d.id] = d.data(); });
-    const myAtt = att[currentUser.uid];
-    const yes = Object.entries(att).filter(([,v]) => v.attending);
-    const no = Object.entries(att).filter(([,v]) => !v.attending);
-    sec.innerHTML = `
-      <div class="card">
-        <div style="padding:14px;">
-          <div style="font-weight:700;margin-bottom:12px;">✅ 참석 여부</div>
-          <div style="display:flex;gap:10px;margin-bottom:14px;">
-            <button style="padding:10px 20px;border-radius:10px;font-size:14px;font-weight:700;border:none;cursor:pointer;background:${myAtt?.attending===true?'#16a34a':'#1a3a1a'};color:${myAtt?.attending===true?'white':'#88cc88'};" onclick="setLtAttendance('${id}',true)">✅ 참석</button>
-            <button style="padding:10px 20px;border-radius:10px;font-size:14px;font-weight:700;border:none;cursor:pointer;background:${myAtt?.attending===false?'#dc2626':'#3a1010'};color:${myAtt?.attending===false?'white':'#ff8888'};" onclick="setLtAttendance('${id}',false)">❌ 미참석</button>
-          </div>
-          <div style="font-size:12px;color:var(--text-dim);">✅ 참석 (${yes.length}명): ${yes.map(([uid])=>ltUsers[uid]?.nick||uid).join(', ')||'없음'}</div>
-          <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">❌ 미참석 (${no.length}명): ${no.map(([uid])=>ltUsers[uid]?.nick||uid).join(', ')||'없음'}</div>
-        </div>
-      </div>`;
-  } catch(e) { sec.innerHTML = `<div class="card"><div style="padding:14px;color:var(--text-dim);">오류: ${e.message}</div></div>`; }
-}
-
-window.setLtAttendance = async (id, attending) => {
-  await setDoc(doc(db,'lightnings',id,'attendees',currentUser.uid), {uid:currentUser.uid, attending, updatedAt:new Date().toISOString()}, {merge:true});
-  loadLtAttendance(id);
-};
-
-// ── 정산 ──
-const LT_CATS = ['🍽️ 식대','🏟️ 이용료','🚗 교통비','🍻 술/음료','🛒 기타'];
-function ltWon(n) { return Number(n).toLocaleString('ko-KR')+'원'; }
-
-async function loadLtExpenses(id) {
-  const expList = document.getElementById('lt-expense-list');
-  const summary = document.getElementById('lt-settle-summary');
-  expList.innerHTML = '<div class="loading">불러오는 중...</div>';
-  summary.innerHTML = '';
-  try {
-    const [expSnap, recSnap] = await Promise.all([
-      getDocs(collection(db,'lightnings',id,'expenses')),
-      getDocs(collection(db,'lightnings',id,'settleRecords'))
-    ]);
-    const expenses = expSnap.docs.map(d => ({id:d.id,...d.data()}));
-    const completedMap = {};
-    recSnap.docs.forEach(d => { const r=d.data(); completedMap[`${r.fromUid}_${r.toUid}`]={id:d.id,...r}; });
-    if(!expenses.length) {
-      expList.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-dim);">💰 등록된 경비가 없습니다.<br><span style="font-size:12px;">위 '+ 경비 추가' 버튼을 눌러주세요.</span></div>`;
-      return;
-    }
-    const catMap = {};
-    expenses.forEach(e => { const c=e.category||'🛒 기타'; if(!catMap[c]) catMap[c]=[]; catMap[c].push(e); });
-    const totalAmt = expenses.reduce((s,e)=>s+e.amount,0);
-    // 경비 건별 내역 — 기본 접힘
-    expList.innerHTML = `
-      <div class="card" style="margin-bottom:10px;">
-        <div style="padding:12px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleLtExpDetail()">
-          <span style="font-weight:700;font-size:13px;">📋 경비 건별 내역</span>
-          <span id="lt-exp-toggle-icon" style="font-size:12px;color:var(--text-dim);">▶ 펼치기</span>
-        </div>
-        <div id="lt-exp-detail" style="display:none;border-top:1px solid var(--border);">
-          ${Object.entries(catMap).map(([cat, items]) => `
-            <div style="padding:12px 14px;">
-              <div style="font-weight:800;font-size:13px;margin-bottom:8px;color:var(--text-mid);">${cat}</div>
-              ${items.map(e => {
-                const share = Math.ceil(e.amount / (e.participants?.length||1));
-                return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--border);">
-                  <div style="flex:1;">
-                    <div style="font-weight:600;font-size:13px;">${e.title}</div>
-                    ${e.memo?`<div style="font-size:11px;color:var(--text-dim);">📝 ${e.memo}</div>`:''}
-                    <div style="font-size:11px;color:var(--text-dim);">${e.participants?.length||0}명 · 1인 <strong>${ltWon(share)}</strong> · 결제: ${ltUsers[e.paidBy||e.addedBy]?.nick||'?'}</div>
-                    <div style="margin-top:2px;">${(e.participants||[]).map(uid=>`<span style="display:inline-block;background:var(--bg3);border-radius:4px;padding:1px 5px;font-size:10px;margin:1px;">${ltUsers[uid]?.nick||uid}</span>`).join('')}</div>
-                  </div>
-                  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-left:10px;">
-                    <div style="font-size:14px;font-weight:800;color:#f0b040;">${ltWon(e.amount)}</div>
-                    ${isAdmin||e.addedBy===currentUser.uid?`<button class="btn btn-sm" style="background:#3a1010;border:1px solid #6a2020;color:#ff6666;" onclick="deleteLtExpense('${id}','${e.id}')">삭제</button>`:''}
-                  </div>
-                </div>`;
-              }).join('')}
-              <div style="display:flex;justify-content:flex-end;padding-top:6px;font-size:12px;color:var(--text-dim);">소계: <span style="color:#f0b040;margin-left:4px;font-weight:700;">${ltWon(items.reduce((s,e)=>s+e.amount,0))}</span></div>
-            </div>`).join('<div style="height:1px;background:var(--border);"></div>')}
-        </div>
-      </div>`;
-    // 경비별 직접 정산 (상계 없음: 낸 사람 제외 참여자 각자 → 낸 사람)
-    const transferMap = {}, personDetail = {};
-    expenses.forEach(e => {
-      if(!e.participants?.length) return;
-      const payer = e.paidBy||e.addedBy;
-      const share = Math.ceil(e.amount / e.participants.length);
-      const cat = e.category||'🛒 기타';
-      e.participants.forEach(uid => {
-        if(!personDetail[uid]) personDetail[uid] = [];
-        personDetail[uid].push({title:e.title, cat, share, payer});
-        if(uid === payer) return; // 낸 사람은 자기 자신에게 보낼 필요 없음
-        const key = `${uid}_${payer}`;
-        transferMap[key] = (transferMap[key]||0) + share;
-      });
-    });
-    const transactions = Object.entries(transferMap)
-      .map(([key, amount]) => { const [from, to] = key.split('_'); return {from, to, amount}; })
-      .filter(t => t.amount > 0);
-    const catTotal = {};
-    expenses.forEach(e => { const c=e.category||'🛒 기타'; catTotal[c]=(catTotal[c]||0)+e.amount; });
-    const remaining = transactions.filter(t => !completedMap[`${t.from}_${t.to}`]);
-    const completed = transactions.filter(t => completedMap[`${t.from}_${t.to}`]);
-    const remainAmt = remaining.reduce((s,t)=>s+t.amount,0);
-    const completedAmt = completed.reduce((s,t)=>s+t.amount,0);
-    // 개인별 정산 요약용 uids 수집
-    const allUids = new Set([...transactions.map(t=>t.from), ...transactions.map(t=>t.to)]);
-    summary.innerHTML = `
-      <div class="card">
-        <div style="padding:14px;">
-          <div style="font-weight:800;font-size:14px;margin-bottom:10px;">📊 합계</div>
-          ${Object.entries(catTotal).map(([cat,amt])=>`
-            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;"><span>${cat}</span><span style="font-weight:700;">${ltWon(amt)}</span></div>`).join('')}
-          <div style="display:flex;justify-content:space-between;padding:10px 0 4px;font-weight:800;font-size:14px;">
-            <span>전체 합계</span><span style="color:#f0b040;">${ltWon(totalAmt)}</span>
-          </div>
-        </div>
-      </div>
-      <div class="card">
-        <div style="padding:14px;">
-          <div style="font-weight:800;font-size:15px;margin-bottom:4px;">💸 개인별 정산</div>
-          <div style="font-size:11px;color:var(--text-dim);margin-bottom:14px;">완료 버튼을 누르면 정산 완료 처리됩니다</div>
-          ${!allUids.size
-            ? `<div style="text-align:center;padding:16px;color:var(--text-dim);font-size:13px;">정산할 내역이 없습니다 🎉</div>`
-            : [...allUids].map(uid => {
-                const isMe = uid === currentUser.uid;
-                const sends = transactions.filter(t => t.from === uid);
-                const receives = transactions.filter(t => t.to === uid);
-                const myItems = personDetail[uid] || [];
-                const totalSend = sends.reduce((s,t)=>s+t.amount,0);
-                const totalRecv = receives.reduce((s,t)=>s+t.amount,0);
-                return `
-                <div style="border:1px solid ${isMe?'#5a4a7a':'var(--border)'};border-radius:8px;overflow:hidden;margin-bottom:10px;${isMe?'box-shadow:0 0 0 1px #5a4a7a22;':''}">
-                  <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:${isMe?'#2a1a4a':'var(--bg3)'};">
-                    <div style="font-weight:700;font-size:14px;">${isMe?`⭐ 나 (${ltUsers[uid]?.nick||uid})`:ltUsers[uid]?.nick||uid}</div>
-                    <div style="font-size:12px;display:flex;gap:8px;">
-                      ${totalSend>0?`<span style="color:#ff8888;">보낼 돈 ${ltWon(totalSend)}</span>`:''}
-                      ${totalRecv>0?`<span style="color:#88cc88;">받을 돈 ${ltWon(totalRecv)}</span>`:''}
-                      ${!totalSend&&!totalRecv?`<span style="color:var(--text-dim);">정산 없음</span>`:''}
-                    </div>
-                  </div>
-                  <div style="padding:10px 14px;">
-                    ${sends.map(t => {
-                      const isDone = !!completedMap[`${t.from}_${t.to}`];
-                      const rec = completedMap[`${t.from}_${t.to}`];
-                      const can = t.from===currentUser.uid||t.to===currentUser.uid||isAdmin;
-                      const toU = ltUsers[t.to]||{};
-                      return `<div style="padding:7px 0;border-bottom:1px solid var(--border);${isDone?'opacity:0.45;':''}">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                          <span style="font-size:16px;">📤</span>
-                          <div style="flex:1;">
-                            <span style="font-size:13px;font-weight:600;">${toU.nick||t.to}</span>
-                            <span style="font-size:12px;color:var(--text-dim);">에게</span>
-                            <span style="font-size:14px;font-weight:800;color:${isDone?'#888':'#ff8888'};margin-left:6px;${isDone?'text-decoration:line-through;':''}">${ltWon(t.amount)}</span>
-                          </div>
-                          ${isDone
-                            ? `<span style="font-size:10px;font-weight:700;background:#1a3a1a;color:#88cc88;padding:2px 6px;border-radius:8px;">✅ 완료</span>
-                               ${isAdmin?`<button class="btn btn-sm" style="background:var(--bg4);border:1px solid var(--border);color:var(--text-dim);" onclick="undoLtSettleDone('${id}','${rec.id}')">취소</button>`:''}`
-                            : can?`<button class="btn btn-sm" style="background:#1a3a1a;border:1px solid #4a7a4a;color:#88cc88;" onclick="markLtSettleDone('${id}','${t.from}','${t.to}',${t.amount})">✓ 완료</button>`:''}
-                        </div>
-                        ${toU.accountNum?`<div style="margin-top:4px;margin-left:28px;font-size:11px;color:var(--text-dim);background:var(--bg3);padding:4px 8px;border-radius:6px;display:inline-block;">🏦 ${toU.bankName||''} <span style="font-family:monospace;letter-spacing:1px;">${toU.accountNum}</span>${toU.accountHolder?` · ${toU.accountHolder}`:''}</div>`:''}
-                      </div>`;
-                    }).join('')}
-                    ${receives.map(t => {
-                      const isDone = !!completedMap[`${t.from}_${t.to}`];
-                      const fromU = ltUsers[t.from]||{};
-                      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);${isDone?'opacity:0.45;':''}">
-                        <span style="font-size:16px;">📥</span>
-                        <div style="flex:1;">
-                          <span style="font-size:13px;font-weight:600;">${fromU.nick||t.from}</span>
-                          <span style="font-size:12px;color:var(--text-dim);">에게서</span>
-                          <span style="font-size:14px;font-weight:800;color:${isDone?'#888':'#88cc88'};margin-left:6px;${isDone?'text-decoration:line-through;':''}">${ltWon(t.amount)}</span>
-                        </div>
-                        ${isDone?`<span style="font-size:10px;font-weight:700;background:#1a3a1a;color:#88cc88;padding:2px 6px;border-radius:8px;">✅ 완료</span>`:''}
-                      </div>`;
-                    }).join('')}
-                    ${myItems.length?`
-                      <div style="margin-top:8px;">
-                        <div style="font-size:11px;color:var(--text-dim);cursor:pointer;padding:4px 0;" onclick="toggleLtDetail('${uid}')">경비 상세 보기 ▾</div>
-                        <div id="lt-settle-detail-${uid}" style="display:none;margin-top:6px;">
-                          ${myItems.map(i=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);">
-                            <div><span style="font-size:10px;background:var(--bg4);border-radius:3px;padding:1px 4px;margin-right:3px;">${i.cat}</span>${i.title}
-                              <span style="color:var(--text-dim);font-size:10px;">(결제: ${ltUsers[i.payer]?.nick||i.payer})</span></div>
-                            <span style="color:#ff8888;white-space:nowrap;margin-left:6px;">-${ltWon(i.share)}</span>
-                          </div>`).join('')}
-                          <div style="text-align:right;padding-top:4px;font-size:12px;color:var(--text-dim);">부담 합계: <strong>${ltWon(myItems.reduce((s,i)=>s+i.share,0))}</strong></div>
-                        </div>
-                      </div>`:''}
-                  </div>
-                </div>`;
-              }).join('')}
-        </div>
-      </div>`;
-  } catch(e) { expList.innerHTML = `<div style="padding:14px;color:var(--text-dim);">오류: ${e.message}</div>`; }
-}
-
-window.toggleLtDetail = (uid) => {
-  const el = document.getElementById('lt-settle-detail-'+uid);
-  if(el) el.style.display = el.style.display==='none'?'':'none';
-};
-
-window.toggleLtExpDetail = () => {
-  const el = document.getElementById('lt-exp-detail');
-  const icon = document.getElementById('lt-exp-toggle-icon');
-  if(!el) return;
-  const open = el.style.display === 'none';
-  el.style.display = open ? '' : 'none';
-  if(icon) icon.textContent = open ? '▼ 접기' : '▶ 펼치기';
-};
-
-window.openLtExpenseModal = async () => {
-  // 참석자만 불러오기
-  const attSnap = await getDocs(collection(db,'lightnings',currentLtId,'attendees'));
-  const attendeeUids = attSnap.docs.filter(d=>d.data().attending).map(d=>d.id);
-  // 참석자가 없으면 전체 표시
-  const targetUids = attendeeUids.length ? attendeeUids : Object.keys(ltUsers);
-  const userList = targetUids.map(uid => [uid, ltUsers[uid]]).filter(([,u])=>u);
-  const defaultPayer = targetUids.includes(currentUser.uid) ? currentUser.uid : (targetUids[0]||'');
-  const payerOpts = userList.map(([uid,u]) =>
-    `<option value="${uid}" ${uid===defaultPayer?'selected':''}>${u.nick} (${u.realname||''})</option>`).join('');
-  const userOpts = userList.map(([uid,u]) =>
-    `<label style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);cursor:pointer;">
-      <input type="checkbox" class="lt-exp-chk" value="${uid}" checked>
-      <span style="font-weight:600;">${u.nick}</span>
-      <span style="color:var(--text-dim);font-size:12px;">${u.realname||''}</span>
-    </label>`).join('');
-  const catOpts = LT_CATS.map(c => `<option value="${c}">${c}</option>`).join('');
-  document.getElementById('lt-modal-container').innerHTML = `
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;display:flex;align-items:flex-end;justify-content:center;" onclick="closeLtModal(event)">
-      <div style="background:var(--bg2);border-radius:16px 16px 0 0;padding:22px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;" onclick="event.stopPropagation()">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-          <span style="font-size:16px;font-weight:800;">💰 경비 추가</span>
-          <button style="background:var(--bg3);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:var(--text-dim);" onclick="closeLtModal()">✕</button>
-        </div>
-        <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">카테고리</label><select class="inp" id="lt-ecat">${catOpts}</select></div>
-        <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">항목 이름 *</label><input class="inp" id="lt-ename" placeholder="예: 저녁 고기, 볼링장"></div>
-        <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">결제한 사람 *</label><select class="inp" id="lt-epayer">${payerOpts}</select></div>
-        <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">금액 (원) *</label><input class="inp" id="lt-eamt" type="number" placeholder="0" oninput="ltCalcPrev()"></div>
-        <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">메모 (선택)</label><input class="inp" id="lt-ememo" placeholder="비고"></div>
-        <div style="margin-bottom:12px;">
-          <label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">참여 인원</label>
-          <div style="display:flex;gap:6px;margin-bottom:6px;">
-            <button type="button" class="btn btn-sm" style="background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);" onclick="ltToggleAllExp(true)">전체 선택</button>
-            <button type="button" class="btn btn-sm" style="background:var(--bg3);border:1px solid var(--border);color:var(--text-dim);" onclick="ltToggleAllExp(false)">전체 해제</button>
-          </div>
-          <div style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:4px 8px;">${userOpts}</div>
-        </div>
-        <div id="lt-eprev" style="background:var(--bg3);padding:10px;border-radius:8px;margin-bottom:14px;font-size:14px;font-weight:700;text-align:center;display:none;"></div>
-        <button class="btn" style="width:100%;background:#1a3a4a;border:1px solid #4a7a9a;color:#88ccff;padding:12px;" onclick="saveLtExpense('${currentLtId}')">추가</button>
-      </div>
-    </div>`;
-};
-
-window.closeLtModal = (e) => {
-  if(e && e.target !== e.currentTarget) return;
-  document.getElementById('lt-modal-container').innerHTML = '';
-};
-
-window.ltToggleAllExp = (check) => {
-  document.querySelectorAll('.lt-exp-chk').forEach(c => c.checked = check);
-  ltCalcPrev();
-};
-
-window.ltCalcPrev = () => {
-  const amt = parseInt(document.getElementById('lt-eamt')?.value)||0;
-  const n = document.querySelectorAll('.lt-exp-chk:checked').length;
-  const prev = document.getElementById('lt-eprev');
-  if(!prev) return;
-  if(amt>0 && n>0) { prev.style.display=''; prev.textContent = `${ltWon(amt)} ÷ ${n}명 = ${ltWon(Math.ceil(amt/n))}/인`; }
-  else prev.style.display='none';
-};
-
-window.saveLtExpense = async (id) => {
-  const category=document.getElementById('lt-ecat').value;
-  const title=document.getElementById('lt-ename').value.trim();
-  const amount=parseInt(document.getElementById('lt-eamt').value)||0;
-  const memo=document.getElementById('lt-ememo').value.trim();
-  const paidBy=document.getElementById('lt-epayer').value;
-  const participants=[...document.querySelectorAll('.lt-exp-chk:checked')].map(c=>c.value);
-  if(!title||amount<=0){ showToast('항목 이름과 금액을 입력해주세요'); return; }
-  if(!participants.length){ showToast('참여 인원을 1명 이상 선택해주세요'); return; }
-  await addDoc(collection(db,'lightnings',id,'expenses'),{category,title,amount,memo,paidBy,participants,addedBy:currentUser.uid,createdAt:new Date().toISOString()});
-  closeLtModal();
-  loadLtExpenses(id);
-};
-
-window.deleteLtExpense = async (id, expId) => {
-  if(!confirm('삭제하시겠습니까?')) return;
-  await deleteDoc(doc(db,'lightnings',id,'expenses',expId));
-  loadLtExpenses(id);
-};
-
-window.markLtSettleDone = async (id, fromUid, toUid, amount) => {
-  if(!confirm(`${ltUsers[fromUid]?.nick||fromUid} → ${ltUsers[toUid]?.nick||toUid} 정산을 완료 처리하시겠습니까?`)) return;
-  await addDoc(collection(db,'lightnings',id,'settleRecords'),{fromUid,toUid,amount,markedBy:currentUser.uid,completedAt:new Date().toISOString()});
-  loadLtExpenses(id);
-};
-
-window.undoLtSettleDone = async (id, recId) => {
-  if(!confirm('완료를 취소하시겠습니까?')) return;
-  await deleteDoc(doc(db,'lightnings',id,'settleRecords',recId));
-  loadLtExpenses(id);
-};
-
-window.openLtModal = (id='') => {
-  const lt = id ? allLightnings.find(x=>x.id===id) : null;
-  document.getElementById('lt-modal-container').innerHTML = `
-    <div style="position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;display:flex;align-items:flex-end;justify-content:center;" onclick="closeLtModal(event)">
-      <div style="background:var(--bg2);border-radius:16px 16px 0 0;padding:22px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;" onclick="event.stopPropagation()">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-          <span style="font-size:16px;font-weight:800;">⚡ ${lt?'번개 수정':'번개 추가'}</span>
-          <button style="background:var(--bg3);border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;color:var(--text-dim);" onclick="closeLtModal()">✕</button>
-        </div>
-        <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">제목 *</label><input class="inp" id="lt-mtitle" value="${lt?.title||''}" placeholder="예: 5월 번개 모임"></div>
-        <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">날짜 *</label><input class="inp" id="lt-mstart" type="date" value="${lt?.dateStart||''}"></div>
-        <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">종료일 (선택)</label><input class="inp" id="lt-mend" type="date" value="${lt?.dateEnd||''}"></div>
-        <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">장소</label><input class="inp" id="lt-mloc" value="${lt?.location||''}" placeholder="예: 홍대 볼링장"></div>
-        <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">네이버 지도 링크 (선택)</label><input class="inp" id="lt-mmap" type="url" value="${lt?.naverMapUrl||''}" placeholder="https://map.naver.com/..."></div>
-        <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">카카오 오픈채팅 링크 (선택)</label><input class="inp" id="lt-mchat" type="url" value="${lt?.chatUrl||''}" placeholder="https://open.kakao.com/..."></div>
-        <div style="margin-bottom:12px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">설명</label><textarea class="inp" id="lt-mdesc" rows="3" style="resize:vertical;min-height:70px;">${lt?.description||''}</textarea></div>
-        <div style="margin-bottom:16px;"><label style="font-size:12px;color:var(--text-dim);display:block;margin-bottom:5px;">상태</label>
-          <select class="inp" id="lt-mstatus">
-            <option value="planned" ${lt?.status!=='completed'?'selected':''}>📅 예정</option>
-            <option value="completed" ${lt?.status==='completed'?'selected':''}>✅ 완료</option>
-          </select></div>
-        <button class="btn" style="width:100%;background:#2a1a4a;border:1px solid #6a4a9a;color:#cc88ff;padding:12px;" onclick="saveLt('${id||''}')">저장</button>
-      </div>
-    </div>`;
-};
-
-window.saveLt = async (id) => {
-  const title=document.getElementById('lt-mtitle').value.trim();
-  const dateStart=document.getElementById('lt-mstart').value;
-  const dateEnd=document.getElementById('lt-mend').value;
-  const location=document.getElementById('lt-mloc').value.trim();
-  const naverMapUrl=document.getElementById('lt-mmap').value.trim();
-  const chatUrl=document.getElementById('lt-mchat').value.trim();
-  const description=document.getElementById('lt-mdesc').value.trim();
-  const status=document.getElementById('lt-mstatus').value;
-  if(!title||!dateStart){ showToast('제목과 날짜는 필수입니다'); return; }
-  const data={title,dateStart,dateEnd,location,naverMapUrl,chatUrl,description,status};
-  if(id){
-    await updateDoc(doc(db,'lightnings',id),data);
-    const idx=allLightnings.findIndex(x=>x.id===id);
-    if(idx>-1) allLightnings[idx]={...allLightnings[idx],...data};
-    closeLtModal();
-    showLightningDetail(id);
-  } else {
-    const ref=await addDoc(collection(db,'lightnings'),{...data,createdBy:currentUser.uid,createdAt:new Date().toISOString()});
-    allLightnings.unshift({id:ref.id,...data,createdBy:currentUser.uid});
-    closeLtModal();
-    renderLightnings();
-  }
-  showToast(id?'수정됐습니다':'번개가 추가됐습니다 ⚡');
-};
-
-window.completeLt = async (id) => {
-  await updateDoc(doc(db,'lightnings',id),{status:'completed'});
-  const idx = allLightnings.findIndex(x=>x.id===id);
-  if(idx>-1) allLightnings[idx].status = 'completed';
-  renderLightnings();
-  showLightningDetail(id);
-  showToast('완료로 저장됐습니다 ✅');
-};
-
-window.deleteLt = async (id) => {
-  if(!confirm('번개를 삭제하시겠습니까?')) return;
-  const [a,b,c]=await Promise.all([
-    getDocs(collection(db,'lightnings',id,'attendees')),
-    getDocs(collection(db,'lightnings',id,'expenses')),
-    getDocs(collection(db,'lightnings',id,'settleRecords'))
-  ]);
-  const batch=writeBatch(db);
-  [...a.docs,...b.docs,...c.docs].forEach(d=>batch.delete(d.ref));
-  batch.delete(doc(db,'lightnings',id));
-  await batch.commit();
-  allLightnings=allLightnings.filter(x=>x.id!==id);
-  showLightningList();
-  renderLightnings();
-  showToast('삭제됐습니다');
-};
 
 window.showFindPanel = (type) => {
   const panel = document.getElementById('auth-find');
