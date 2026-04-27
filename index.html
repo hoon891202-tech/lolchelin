@@ -326,7 +326,8 @@ select.inp option{background:#1e1e1e;}
 <div class="wrap">
   <div class="card">
     <div class="card-header"><span class="card-icon">📊</span><span class="card-title">전체 통계</span>
-      <select id="stats-month" class="inp btn-sm" style="margin-left:auto;width:100px;" onchange="loadStats()">
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="loadStats(true)">🔄</button>
+      <select id="stats-month" class="inp btn-sm" style="width:100px;" onchange="loadStats()">
       </select>
     </div>
     <div id="stats-table" style="overflow-x:auto;"><div class="loading">불러오는 중...</div></div>
@@ -732,6 +733,17 @@ select.inp option{background:#1e1e1e;}
 <div id="page-admin" class="page">
 <div class="wrap">
   <div class="card">
+    <div class="card-header"><span class="card-icon">🔄</span><span class="card-title">티어 자동 갱신</span><span class="card-note">매일 오전 7시 자동 실행</span></div>
+    <div style="padding:14px;display:flex;flex-direction:column;gap:10px;">
+      <div style="font-size:12px;color:var(--text-dim);">닉네임이 <b style="color:#aaa;">이름#KR1</b> 형식인 회원만 갱신됩니다. 갱신에 1~2분 소요될 수 있어요.</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn btn-red btn-sm" onclick="adminSyncTiers()" id="sync-tier-btn">🔄 지금 전체 티어 갱신</button>
+        <span id="sync-tier-status" style="font-size:12px;color:var(--text-dim);"></span>
+      </div>
+      <div id="sync-tier-result" style="font-size:12px;display:none;max-height:160px;overflow-y:auto;background:var(--bg3);border-radius:6px;padding:8px;"></div>
+    </div>
+  </div>
+  <div class="card">
     <div class="card-header"><span class="card-icon">📝</span><span class="card-title">회원 기록 대신 입력</span><span class="card-note">관리자 전용</span></div>
     <div style="padding:14px;display:flex;flex-direction:column;gap:10px;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -881,6 +893,8 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, doc, setDoc, getDoc, getDocs, collection, addDoc, deleteDoc, updateDoc, query, where, orderBy, writeBatch }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFunctions, httpsCallable }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBhNE__MP03us7jceswLdVipaVXHhO3AcA",
@@ -893,6 +907,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const functions = getFunctions(app, 'us-central1');
 
 // 로그인 상태 브라우저에 영구 저장 (창 닫아도 유지)
 setPersistence(auth, browserLocalPersistence);
@@ -901,6 +916,20 @@ setPersistence(auth, browserLocalPersistence);
 const ADMIN_UIDS = ["0vg5Ki56xZTSNh7JJRqOOSUZ3zn1"];
 
 const TIER_NAMES = {C:'챌린저',GM:'그마',M:'마스터',D:'다이아',E:'에메',P:'플레',G:'골드',S:'실버',B:'브론즈',I:'아이언'};
+// 최고티어 + 현재솔랭(랭크+LP) 렌더링
+const RANK_NUM = {I:'1', II:'2', III:'3', IV:'4'};
+function tierBadges(tier, currentTier, size='10px', currentRank='', currentLP=''){
+  const best = `<span class="tb t${tier}" style="font-size:${size};" title="최고티어">${TIER_NAMES[tier]||tier}</span>`;
+  if(!currentTier) return best;
+  const rankStr = RANK_NUM[currentRank]||'';
+  const lpStr = currentLP!==''&&currentLP!==undefined ? `${currentLP}LP` : '';
+  const currLabel = (TIER_NAMES[currentTier]||currentTier) + (rankStr?rankStr:'') + (lpStr?' '+lpStr:'');
+  const isSame = currentTier===tier;
+  if(isSame && !rankStr && !lpStr) return best;
+  // 같은 티어면 LP만, 다른 티어면 → 표시
+  const arrow = isSame ? '' : '→';
+  return best + `<span class="tb t${currentTier}" style="font-size:${size};opacity:0.85;margin-left:2px;" title="현재솔랭">${arrow}${currLabel}</span>`;
+}
 const TIER_PTS_MAP = {C:10,GM:10,M:9,D:8,E:7,P:6,G:5,S:4,B:3,I:3};
 
 let currentUser = null;
@@ -1024,9 +1053,15 @@ function getSubValue(selId, inputId){
 function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
 
 // ── RANKING ──
+const CACHE_TTL = 10 * 60 * 1000; // 10분
+let rankingCache = null; // { month, data, ts }
+
 async function loadRanking(){
   const now = new Date();
   const month = ym(now);
+  if(rankingCache && rankingCache.month===month && Date.now()-rankingCache.ts < CACHE_TTL){
+    renderRankingList(rankingCache.data); return;
+  }
   document.getElementById('ranking-month').textContent = `${now.getMonth()+1}월`;
   try {
     const usersSnap = await getDocs(collection(db,'users'));
@@ -1038,31 +1073,37 @@ async function loadRanking(){
       const recSnap = await getDocs(query(collection(db,'records'), where('uid','==',d.id), where('month','==',month)));
       let pts=0, wins=0, total=0;
       recSnap.forEach(r=>{ const rec=r.data(); pts+=rec.pts||0; if(rec.type==='naejeon'){ total++; if(rec.result==='win') wins++; } });
-      members.push({nick:u.nick, realname:u.realname||'', birthyear:u.birthyear||'', tier:u.tier, main:u.main, sub:u.sub||'', isAdmin:u.isAdmin||false, pts, wins, total});
+      members.push({nick:u.nick, realname:u.realname||'', birthyear:u.birthyear||'', tier:u.tier, currentTier:u.currentTier||'', currentRank:u.currentRank||'', currentLP:u.currentLP??'', main:u.main, sub:u.sub||'', isAdmin:u.isAdmin||false, pts, wins, total});
     }
     members.sort((a,b)=>b.pts-a.pts);
-    const el = document.getElementById('ranking-list');
-    if(!members.length){ el.innerHTML='<div class="empty-hint">이번 달 기록이 없습니다</div>'; return; }
-    el.innerHTML = members.slice(0,10).map((m,i)=>{
-      const wr = m.total>0 ? Math.round(m.wins/m.total*100)+'%' : '-';
-      return `<div class="rank-row">
-        <span class="rank-num ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n'}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
-        <span class="rank-name">${m.realname||m.nick}<span style="font-size:11px;color:var(--text-dim);font-weight:300;margin-left:5px;">${m.birthyear?m.birthyear+'년생 ':''}<span style="color:var(--text-mid);">(${m.nick})</span>${m.isAdmin?'<span style="font-size:10px;color:var(--gold);margin-left:4px;">👑</span>':''}</span></span>
-        <span class="tb t${m.tier}" style="font-size:10px;">${TIER_NAMES[m.tier]||m.tier}</span>
-        <span style="font-size:11px;color:var(--text-dim);">${m.main||''}${m.sub?' / '+( m.sub==='all'?'상관없음':m.sub):''}</span>
-        <div style="margin-left:auto;text-align:right;">
-          <div class="rank-pts">${m.pts}<span class="rank-pts-label">pt</span></div>
-          ${m.total>0?`<span class="rank-wr">${wr}</span>`:''}
-        </div>
-      </div>`;
-    }).join('');
+    rankingCache = { month, data: members, ts: Date.now() };
+    renderRankingList(members);
   } catch(e){ console.error(e); }
+}
+
+function renderRankingList(members){
+  const el = document.getElementById('ranking-list');
+  if(!members.length){ el.innerHTML='<div class="empty-hint">이번 달 기록이 없습니다</div>'; return; }
+  el.innerHTML = members.slice(0,10).map((m,i)=>{
+    const wr = m.total>0 ? Math.round(m.wins/m.total*100)+'%' : '-';
+    return `<div class="rank-row">
+      <span class="rank-num ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n'}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
+      <span class="rank-name">${m.realname||m.nick}<span style="font-size:11px;color:var(--text-dim);font-weight:300;margin-left:5px;">${m.birthyear?m.birthyear+'년생 ':''}<span style="color:var(--text-mid);">(${m.nick})</span>${m.isAdmin?'<span style="font-size:10px;color:var(--gold);margin-left:4px;">👑</span>':''}</span></span>
+      ${tierBadges(m.tier, m.currentTier, '10px', m.currentRank, m.currentLP)}
+      <span style="font-size:11px;color:var(--text-dim);">${m.main||''}${m.sub?' / '+( m.sub==='all'?'상관없음':m.sub):''}</span>
+      <div style="margin-left:auto;text-align:right;">
+        <div class="rank-pts">${m.pts}<span class="rank-pts-label">pt</span></div>
+        ${m.total>0?`<span class="rank-wr">${wr}</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── STATS ──
 let statsRows = [];
 let statsSort = 'pts';
 let statsSortDir = 'desc';
+let statsCache = {}; // { [month]: { data, ts } }
 
 function renderStatsTable() {
   const sorted = [...statsRows].sort((a,b) => {
@@ -1090,7 +1131,7 @@ function renderStatsTable() {
     ${sorted.map((r,i)=>`<tr>
       <td>${i+1}</td>
       <td style="font-weight:500;">${r.realname||r.nick} ${r.birthyear?`<span style="font-size:11px;color:var(--text-dim);">${r.birthyear}년생</span>`:''} <span style="font-size:11px;color:var(--text-mid);">(${r.nick})</span></td>
-      <td><span class="tb t${r.tier}">${TIER_NAMES[r.tier]||r.tier}</span></td>
+      <td>${tierBadges(r.tier, r.currentTier, '11px', r.currentRank, r.currentLP)}</td>
       <td style="font-size:12px;">${r.main||'-'}</td>
       <td>${r.jarangGames}판</td>
       <td class="v-green">${r.wins}</td>
@@ -1122,9 +1163,14 @@ function initStatsMonths(){
   }
 }
 
-window.loadStats = async () => {
+window.loadStats = async (forceRefresh) => {
   const month = document.getElementById('stats-month').value;
   const el = document.getElementById('stats-table');
+  if(!forceRefresh && statsCache[month] && Date.now()-statsCache[month].ts < CACHE_TTL){
+    statsRows = statsCache[month].data;
+    statsSort = 'pts'; statsSortDir = 'desc';
+    renderStatsTable(); return;
+  }
   el.innerHTML = '<div class="loading">불러오는 중...</div>';
   try {
     const usersSnap = await getDocs(collection(db,'users'));
@@ -1136,11 +1182,11 @@ window.loadStats = async () => {
       let pts=0,wins=0,loses=0,jarangGames=0;
       recSnap.forEach(r=>{ const rec=r.data(); pts+=rec.pts||0; if(rec.type==='naejeon'){ if(rec.result==='win')wins++;else loses++; } if(rec.type==='jarang') jarangGames+=rec.games||0; });
       const total=wins+loses;
-      rows.push({nick:u.nick,realname:u.realname||'',birthyear:u.birthyear||'',tier:u.tier,main:u.main||'',pts,wins,loses,total,jarangGames,wr:total>0?Math.round(wins/total*100):0});
+      rows.push({nick:u.nick,realname:u.realname||'',birthyear:u.birthyear||'',tier:u.tier,currentTier:u.currentTier||'',currentRank:u.currentRank||'',currentLP:u.currentLP??'',main:u.main||'',pts,wins,loses,total,jarangGames,wr:total>0?Math.round(wins/total*100):0});
     }
+    statsCache[month] = { data: rows, ts: Date.now() };
     statsRows = rows;
-    statsSort = 'pts';
-    statsSortDir = 'desc';
+    statsSort = 'pts'; statsSortDir = 'desc';
     renderStatsTable();
   } catch(e){ el.innerHTML='<div class="empty-hint">불러오기 실패: '+e.message+'</div>'; }
 };
@@ -2003,6 +2049,32 @@ window.admMemoChange = (uid) => {
   const btn = document.getElementById('adm-save-all-btn');
   if(btn){ const cnt = Object.keys(admMemoChanges).length; btn.textContent = `📝 메모 일괄저장 (${cnt}건)`; btn.style.borderColor='#ff8800'; btn.style.color='#ffaa44'; }
 };
+window.adminSyncTiers = async () => {
+  const btn = document.getElementById('sync-tier-btn');
+  const status = document.getElementById('sync-tier-status');
+  const resultEl = document.getElementById('sync-tier-result');
+  btn.disabled = true;
+  status.textContent = '갱신 중... (1~2분 소요)';
+  resultEl.style.display = 'none';
+  try {
+    const syncAllTiers = httpsCallable(functions, 'syncAllTiers');
+    const res = await syncAllTiers({});
+    const { results, total, success } = res.data;
+    status.textContent = `✅ ${total}명 중 ${success}명 갱신 완료`;
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = results.map(r => {
+      const color = r.status==='ok' ? '#66cc66' : r.status==='skip' ? '#888' : '#ff6666';
+      return `<div style="color:${color};padding:2px 0;">${r.nick} → ${r.status==='ok' ? r.tier+'티어' : r.reason||r.status}</div>`;
+    }).join('');
+    rankingCache = null; statsCache = {};
+    showToast(`✅ 티어 갱신 완료 (${success}/${total}명)`);
+  } catch(e) {
+    status.textContent = '❌ 갱신 실패: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+};
+
 window.adminSaveAllMemos = async () => {
   const entries = Object.entries(admMemoChanges);
   if(!entries.length){ showToast('변경된 내용이 없습니다'); return; }
@@ -2854,7 +2926,7 @@ async function njAutoRestoreArrange(game){
     activeUids.forEach(uid=>{
       const u = allApplicants[uid];
       const savedLoc = savedMap[uid] || 'pool';
-      players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,main:u.main||'',sub:u.sub||'',loc:savedLoc,balanceTier:balanceMap2[uid]||''});
+      players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,currentTier:u.currentTier||'',currentRank:u.currentRank||'',currentLP:u.currentLP??'',main:u.main||'',sub:u.sub||'',loc:savedLoc,balanceTier:balanceMap2[uid]||''});
     });
     njPlayers[game] = players;
     renderNjPlayers(game);
@@ -2951,7 +3023,7 @@ function njCard(p, game){
   return `<div draggable="true" ondragstart="njDragStart(event,${game},'${p.uid}')"
     style="background:var(--bg4);border:1px solid var(--border);border-radius:5px;padding:5px 7px;cursor:grab;user-select:none;font-size:12px;display:flex;align-items:center;gap:5px;"
     onmouseover="this.style.borderColor='#8a3030'" onmouseout="this.style.borderColor='var(--border)'">
-    <span class="tb t${p.tier}" style="font-size:10px;">${TIER_NAMES[p.tier]||p.tier}</span>
+    ${tierBadges(p.tier, p.currentTier, '10px', p.currentRank, p.currentLP)}
     ${isAdmin && p.balanceTier ? `<span style="font-size:10px;background:#1a2a4a;color:#88bbff;border:1px solid #3a5a8a;padding:1px 5px;border-radius:8px;flex-shrink:0;">밸 ${p.balanceTier}</span>` : ''}
     <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.realname||p.nick}</span>
     <span style="font-size:10px;color:var(--text-dim);">${p.main||''}${p.sub&&p.sub!=='all'?' / '+p.sub:p.sub==='all'?' / 무관':''}</span>
@@ -3031,7 +3103,7 @@ window.njLoadTeam = async (game) => {
   activeUids.forEach(uid=>{
     const u = allApplicants[uid];
     const savedLoc = savedMap[uid] || 'pool';
-    players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,main:u.main||'',sub:u.sub||'',loc:savedLoc,balanceTier:balanceMap[uid]||''});
+    players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,currentTier:u.currentTier||'',currentRank:u.currentRank||'',currentLP:u.currentLP??'',main:u.main||'',sub:u.sub||'',loc:savedLoc,balanceTier:balanceMap[uid]||''});
   });
 
   if(!players.length){ showToast('신청자가 없습니다'); return; }
@@ -3196,7 +3268,7 @@ let jpAllUsers = []; // 멤버 검색용 캐시
 async function loadJarPartyPage(){
   const usersSnap = await getDocs(collection(db,'users'));
   jpAllUsers = [];
-  usersSnap.forEach(d=>{ const u=d.data(); if(u.active) jpAllUsers.push({uid:d.id, nick:u.nick, realname:u.realname||'', tier:u.tier, main:u.main||''}); });
+  usersSnap.forEach(d=>{ const u=d.data(); if(u.active) jpAllUsers.push({uid:d.id, nick:u.nick, realname:u.realname||'', tier:u.tier, currentTier:u.currentTier||'', currentRank:u.currentRank||'', currentLP:u.currentLP??'', main:u.main||''}); });
   await jpRenderSlots();
   await loadJpHistory();
 }
@@ -3615,7 +3687,7 @@ function draftCard(p){
     <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.realname||p.nick}</div>
     <div style="font-size:10px;color:var(--text-dim);">${p.birthyear?p.birthyear+'년생 ':''}<span style="color:var(--text-mid);">(${p.nick})</span></div>
     <div style="display:flex;align-items:center;justify-content:space-between;">
-      <span class="tb t${p.tier}">${TIER_NAMES[p.tier]||p.tier}</span>
+      ${tierBadges(p.tier, p.currentTier, '10px', p.currentRank, p.currentLP)}
       ${isAdmin && p.balanceTier ? `<span style="font-size:10px;background:#1a2a4a;color:#88bbff;border:1px solid #3a5a8a;padding:1px 5px;border-radius:8px;">밸 ${p.balanceTier}</span>` : ''}
       <span style="font-size:11px;color:var(--gold-light);font-weight:700;">${pts}pt</span>
     </div>
