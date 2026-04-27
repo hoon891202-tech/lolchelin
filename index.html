@@ -1130,7 +1130,7 @@ function renderStatsTable() {
       <td>${i+1}</td>
       <td style="font-weight:500;">${r.realname||r.nick} ${r.birthyear?`<span style="font-size:11px;color:var(--text-dim);">${r.birthyear}년생</span>`:''} <span style="font-size:11px;color:var(--text-mid);">(${r.nick})</span></td>
       <td><span class="tb t${r.tier}" style="font-size:11px;">${TIER_NAMES[r.tier]||r.tier}</span></td>
-      <td>${r.currentTier ? `<span class="tb t${r.currentTier}" style="font-size:11px;">${TIER_NAMES[r.currentTier]||r.currentTier}${RANK_NUM[r.currentRank]||''}</span><span style="font-size:11px;color:var(--text-dim);margin-left:3px;">${r.currentLP!==''?r.currentLP+'LP':''}</span>` : '<span style="font-size:11px;color:var(--text-dim);">-</span>'}</td>
+      <td style="white-space:nowrap;">${r.currentTier ? `<span class="tb t${r.currentTier}" style="font-size:11px;">${TIER_NAMES[r.currentTier]||r.currentTier}${RANK_NUM[r.currentRank]||''}</span><span style="font-size:11px;color:var(--text-dim);margin-left:3px;">${r.currentLP!==''?r.currentLP+'LP':''}</span>` : '<span style="font-size:11px;color:var(--text-dim);">-</span>'}</td>
       <td style="font-size:12px;">${r.main||'-'}</td>
       <td>${r.jarangGames}판</td>
       <td class="v-green">${r.wins}</td>
