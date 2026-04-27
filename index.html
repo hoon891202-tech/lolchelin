@@ -916,19 +916,15 @@ setPersistence(auth, browserLocalPersistence);
 const ADMIN_UIDS = ["0vg5Ki56xZTSNh7JJRqOOSUZ3zn1"];
 
 const TIER_NAMES = {C:'챌린저',GM:'그마',M:'마스터',D:'다이아',E:'에메',P:'플레',G:'골드',S:'실버',B:'브론즈',I:'아이언'};
-// 최고티어 + 현재솔랭(랭크+LP) 렌더링
+// 최고티어(고정) + 현재솔랭(랭크+LP) 항상 둘 다 표시
 const RANK_NUM = {I:'1', II:'2', III:'3', IV:'4'};
 function tierBadges(tier, currentTier, size='10px', currentRank='', currentLP=''){
   const best = `<span class="tb t${tier}" style="font-size:${size};" title="최고티어">${TIER_NAMES[tier]||tier}</span>`;
   if(!currentTier) return best;
   const rankStr = RANK_NUM[currentRank]||'';
-  const lpStr = currentLP!==''&&currentLP!==undefined ? `${currentLP}LP` : '';
-  const currLabel = (TIER_NAMES[currentTier]||currentTier) + (rankStr?rankStr:'') + (lpStr?' '+lpStr:'');
-  const isSame = currentTier===tier;
-  if(isSame && !rankStr && !lpStr) return best;
-  // 같은 티어면 LP만, 다른 티어면 → 표시
-  const arrow = isSame ? '' : '→';
-  return best + `<span class="tb t${currentTier}" style="font-size:${size};opacity:0.85;margin-left:2px;" title="현재솔랭">${arrow}${currLabel}</span>`;
+  const lpStr = (currentLP!==''&&currentLP!==undefined) ? `${currentLP}LP` : '';
+  const currLabel = (TIER_NAMES[currentTier]||currentTier)+(rankStr?rankStr:'')+(lpStr?' '+lpStr:'');
+  return best + `<span class="tb t${currentTier}" style="font-size:${size};opacity:0.85;margin-left:2px;" title="현재솔랭">${currLabel}</span>`;
 }
 const TIER_PTS_MAP = {C:10,GM:10,M:9,D:8,E:7,P:6,G:5,S:4,B:3,I:3};
 
@@ -1110,17 +1106,19 @@ function renderStatsTable() {
     let va = a[statsSort], vb = b[statsSort];
     if(statsSort === 'nick' || statsSort === 'main') { va = va||''; vb = vb||''; return statsSortDir==='asc' ? va.localeCompare(vb,'ko') : vb.localeCompare(va,'ko'); }
     if(statsSort === 'tier') { va = TIER_PTS_MAP[a.tier]||0; vb = TIER_PTS_MAP[b.tier]||0; }
+    if(statsSort === 'currentTier') { va = TIER_PTS_MAP[a.currentTier]||0; vb = TIER_PTS_MAP[b.currentTier]||0; }
     return statsSortDir==='asc' ? va-vb : vb-va;
   });
   const cols = [
-    {key:'nick',   label:'닉네임'},
-    {key:'tier',   label:'티어'},
-    {key:'main',   label:'라인'},
+    {key:'nick',        label:'닉네임'},
+    {key:'tier',        label:'최고티어'},
+    {key:'currentTier', label:'현재솔랭'},
+    {key:'main',        label:'라인'},
     {key:'jarangGames', label:'자랭판수'},
-    {key:'wins',   label:'내전 승'},
-    {key:'loses',  label:'내전 패'},
-    {key:'wr',     label:'승률'},
-    {key:'pts',    label:'총점'},
+    {key:'wins',        label:'내전 승'},
+    {key:'loses',       label:'내전 패'},
+    {key:'wr',          label:'승률'},
+    {key:'pts',         label:'총점'},
   ];
   const arrow = dir => dir==='asc' ? ' ▲' : ' ▼';
   document.getElementById('stats-table').innerHTML = `<table class="tbl">
@@ -1131,7 +1129,8 @@ function renderStatsTable() {
     ${sorted.map((r,i)=>`<tr>
       <td>${i+1}</td>
       <td style="font-weight:500;">${r.realname||r.nick} ${r.birthyear?`<span style="font-size:11px;color:var(--text-dim);">${r.birthyear}년생</span>`:''} <span style="font-size:11px;color:var(--text-mid);">(${r.nick})</span></td>
-      <td>${tierBadges(r.tier, r.currentTier, '11px', r.currentRank, r.currentLP)}</td>
+      <td><span class="tb t${r.tier}" style="font-size:11px;">${TIER_NAMES[r.tier]||r.tier}</span></td>
+      <td>${r.currentTier ? `<span class="tb t${r.currentTier}" style="font-size:11px;">${TIER_NAMES[r.currentTier]||r.currentTier}${RANK_NUM[r.currentRank]||''}</span><span style="font-size:11px;color:var(--text-dim);margin-left:3px;">${r.currentLP!==''?r.currentLP+'LP':''}</span>` : '<span style="font-size:11px;color:var(--text-dim);">-</span>'}</td>
       <td style="font-size:12px;">${r.main||'-'}</td>
       <td>${r.jarangGames}판</td>
       <td class="v-green">${r.wins}</td>
