@@ -337,7 +337,13 @@ select.inp option{background:#1e1e1e;}
       <span class="card-note">매일 오전 7시 자동갱신</span>
       <button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="loadLolsulpam(true)">🔄</button>
     </div>
+    <div style="padding:12px 16px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <input id="lsp-search" class="inp" style="flex:1;min-width:140px;max-width:240px;" placeholder="이름/닉네임 검색" oninput="filterLolsulpam()">
+      <button class="btn btn-ghost btn-sm" onclick="lspSortByName()" id="lsp-sort-btn">ㄱㄴㄷ 정렬</button>
+      <span id="lsp-page-info" style="font-size:11px;color:var(--text-dim);margin-left:4px;"></span>
+    </div>
     <div id="lsp-grid" style="padding:16px;"></div>
+    <div id="lsp-pagination" style="display:flex;justify-content:center;gap:6px;padding:0 16px 16px;flex-wrap:wrap;"></div>
   </div>
 </div>
 </div>
@@ -1082,13 +1088,49 @@ let statsCache = {}; // { [month]: { data, ts } }
 
 // ── 롤슐팸 ──
 let lspCache = null;
+let lspPage = 1;
+let lspSortName = false;
+const LSP_PAGE_SIZE = 10;
+
+function filterLolsulpam() { lspPage = 1; renderLolsulpam(lspCache?.data||[]); }
+window.lspSortByName = () => { lspSortName = !lspSortName; lspPage = 1; renderLolsulpam(lspCache?.data||[]); };
+window.lspGoPage = (p) => { lspPage = p; renderLolsulpam(lspCache?.data||[]); };
 
 function renderLolsulpam(members) {
   const el = document.getElementById('lsp-grid');
   if(!members.length){ el.innerHTML='<div class="empty-hint">등록된 멤버가 없습니다</div>'; return; }
+
+  const keyword = (document.getElementById('lsp-search')?.value||'').trim().toLowerCase();
+  let filtered = keyword
+    ? members.filter(m=>(m.realname||'').toLowerCase().includes(keyword)||(m.nick||'').toLowerCase().includes(keyword))
+    : [...members];
+
+  if(lspSortName) {
+    filtered.sort((a,b)=>(a.realname||a.nick).localeCompare(b.realname||b.nick,'ko'));
+    document.getElementById('lsp-sort-btn').style.color='var(--gold-light)';
+  } else {
+    document.getElementById('lsp-sort-btn').style.color='';
+  }
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total/LSP_PAGE_SIZE));
+  if(lspPage > totalPages) lspPage = totalPages;
+  const paged = filtered.slice((lspPage-1)*LSP_PAGE_SIZE, lspPage*LSP_PAGE_SIZE);
+
+  document.getElementById('lsp-page-info').textContent = total ? `${total}명 중 ${(lspPage-1)*LSP_PAGE_SIZE+1}~${Math.min(lspPage*LSP_PAGE_SIZE,total)}명` : '';
+
+  const pageEl = document.getElementById('lsp-pagination');
+  if(totalPages <= 1){ pageEl.innerHTML=''; }
+  else {
+    pageEl.innerHTML = Array.from({length:totalPages},(_,i)=>i+1).map(p=>
+      `<button onclick="lspGoPage(${p})" style="padding:4px 10px;border-radius:5px;font-size:12px;cursor:pointer;border:1px solid ${p===lspPage?'#ff5555':'var(--border)'};background:${p===lspPage?'#3a1515':'transparent'};color:${p===lspPage?'#ff7777':'var(--text-dim)'};">${p}</button>`
+    ).join('');
+  }
+
+  if(!paged.length){ el.innerHTML='<div class="empty-hint">검색 결과가 없습니다</div>'; return; }
   const LANE_ICON = {top:'⬆',jg:'🌲',mid:'🎯',bot:'🏹',sup:'🛡',all:'✦'};
   el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;">
-    ${members.map(m=>{
+    ${paged.map(m=>{
       const games = m.recentSoloMatches?.length||0;
       const wins = m.recentSoloMatches?.filter(x=>x.win).length||0;
       const wr = games>0 ? Math.round(wins/games*100) : null;
