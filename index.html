@@ -1617,7 +1617,7 @@ window.adminSyncTiers = async () => {
   status.textContent = '갱신 중... (1~2분 소요)';
   resultEl.style.display = 'none';
   try {
-    const syncAllTiers = httpsCallable(functions, 'syncAllTiers');
+    const syncAllTiers = httpsCallable(functions, 'syncAllTiers', { timeout: 600000 });
     const res = await syncAllTiers({});
     const { results, total, success } = res.data;
     status.textContent = `✅ ${total}명 중 ${success}명 갱신 완료`;
