@@ -1106,7 +1106,11 @@ function renderStatsTable() {
     let va = a[statsSort], vb = b[statsSort];
     if(statsSort === 'nick' || statsSort === 'main') { va = va||''; vb = vb||''; return statsSortDir==='asc' ? va.localeCompare(vb,'ko') : vb.localeCompare(va,'ko'); }
     if(statsSort === 'tier') { va = TIER_PTS_MAP[a.tier]||0; vb = TIER_PTS_MAP[b.tier]||0; }
-    if(statsSort === 'currentTier') { va = TIER_PTS_MAP[a.currentTier]||0; vb = TIER_PTS_MAP[b.currentTier]||0; }
+    if(statsSort === 'currentTier') {
+      const rankVal = {I:4,II:3,III:2,IV:1};
+      va = (TIER_PTS_MAP[a.currentTier]||0)*10000 + (rankVal[a.currentRank]||0)*100 + (a.currentLP||0);
+      vb = (TIER_PTS_MAP[b.currentTier]||0)*10000 + (rankVal[b.currentRank]||0)*100 + (b.currentLP||0);
+    }
     return statsSortDir==='asc' ? va-vb : vb-va;
   });
   const cols = [
