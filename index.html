@@ -2919,13 +2919,14 @@ async function njAutoRestoreArrange(game){
 
     const usersSnap3 = await getDocs(collection(db,'users'));
     const balanceMap2 = {};
-    usersSnap3.forEach(d=>{ balanceMap2[d.id] = d.data().balanceTier||''; });
+    usersSnap3.forEach(d=>{ const ud=d.data(); balanceMap2[d.id] = {balanceTier:ud.balanceTier||'',currentTier:ud.currentTier||'',currentRank:ud.currentRank||'',currentLP:ud.currentLP??''}; });
 
     const players = [];
     activeUids.forEach(uid=>{
       const u = allApplicants[uid];
       const savedLoc = savedMap[uid] || 'pool';
-      players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,currentTier:u.currentTier||'',currentRank:u.currentRank||'',currentLP:u.currentLP??'',main:u.main||'',sub:u.sub||'',loc:savedLoc,balanceTier:balanceMap2[uid]||''});
+      const bm = balanceMap2[uid]||{};
+      players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,currentTier:bm.currentTier,currentRank:bm.currentRank,currentLP:bm.currentLP,main:u.main||'',sub:u.sub||'',loc:savedLoc,balanceTier:bm.balanceTier});
     });
     njPlayers[game] = players;
     renderNjPlayers(game);
@@ -3092,17 +3093,18 @@ window.njLoadTeam = async (game) => {
   const savedMap = {};
   savedArrange.forEach(p=>{ savedMap[p.uid]=p.loc; });
 
-  // balanceTier 가져오기
+  // users에서 balanceTier + currentTier 가져오기
   const usersSnap2 = await getDocs(collection(db,'users'));
   const balanceMap = {};
-  usersSnap2.forEach(d=>{ balanceMap[d.id] = d.data().balanceTier||''; });
+  usersSnap2.forEach(d=>{ const ud=d.data(); balanceMap[d.id] = {balanceTier:ud.balanceTier||'',currentTier:ud.currentTier||'',currentRank:ud.currentRank||'',currentLP:ud.currentLP??''}; });
 
   // 신청자 목록 구성 (저장된 배치 위치 복원)
   const players = [];
   activeUids.forEach(uid=>{
     const u = allApplicants[uid];
     const savedLoc = savedMap[uid] || 'pool';
-    players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,currentTier:u.currentTier||'',currentRank:u.currentRank||'',currentLP:u.currentLP??'',main:u.main||'',sub:u.sub||'',loc:savedLoc,balanceTier:balanceMap[uid]||''});
+    const bm = balanceMap[uid]||{};
+    players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,currentTier:bm.currentTier,currentRank:bm.currentRank,currentLP:bm.currentLP,main:u.main||'',sub:u.sub||'',loc:savedLoc,balanceTier:bm.balanceTier});
   });
 
   if(!players.length){ showToast('신청자가 없습니다'); return; }
