@@ -2666,9 +2666,16 @@ function njBalanceScore(p){
 }
 function njCard(p, game){
   const isPlaced = p.loc !== 'pool';
-  const bScore = isAdmin && isPlaced ? njBalanceScore(p) : 0;
-  const bScoreHtml = isAdmin && isPlaced && bScore ? `<span style="font-size:10px;color:#aaddff;font-weight:700;flex-shrink:0;">${bScore}pt</span>` : '';
-  const hasBal = isAdmin && (p.balanceTierMain||p.balanceTierSub||p.balanceTierSub2);
+  const bScore = isPlaced ? njBalanceScore(p) : 0;
+  const bScoreHtml = isAdmin && isPlaced
+    ? (bScore
+        ? `<span style="font-size:10px;color:#aaddff;font-weight:700;flex-shrink:0;">${bScore}pt</span>`
+        : `<span style="font-size:10px;color:#555;flex-shrink:0;">─pt</span>`)
+    : '';
+  const grayBadge = t => `<span style="font-size:10px;color:#555;border:1px solid #2a2a2a;border-radius:8px;padding:1px 5px;white-space:nowrap;">${t}─</span>`;
+  const btMain = p.balanceTierMain ? btLabel(p.balanceTierMain, p.balanceScoreMain) : grayBadge('주');
+  const btSub  = p.balanceTierSub  ? btLabel(p.balanceTierSub,  p.balanceScoreSub)  : grayBadge('부');
+  const btSub2 = p.balanceTierSub2 ? btLabel(p.balanceTierSub2, p.balanceScoreSub2) : grayBadge('부2');
   return `<div draggable="true" ondragstart="njDragStart(event,${game},'${p.uid}')" ontouchstart="njTouchStart(event,${game},'${p.uid}')"
     style="background:var(--bg4);border:1px solid var(--border);border-radius:5px;padding:5px 7px;cursor:grab;user-select:none;font-size:12px;overflow:hidden;"
     onmouseover="this.style.borderColor='#8a3030'" onmouseout="this.style.borderColor='var(--border)'">
@@ -2678,7 +2685,7 @@ function njCard(p, game){
       ${bScoreHtml}
       <span style="font-size:10px;color:var(--text-dim);white-space:nowrap;flex-shrink:0;">${p.main||''}${p.sub?' / '+p.sub:''}</span>
     </div>
-    ${hasBal?`<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:3px;">${p.balanceTierMain?btLabel(p.balanceTierMain,p.balanceScoreMain):''}${p.balanceTierSub?btLabel(p.balanceTierSub,p.balanceScoreSub):''}${p.balanceTierSub2?btLabel(p.balanceTierSub2,p.balanceScoreSub2):''}</div>`:''}
+    ${isAdmin?`<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:3px;">${btMain}${btSub}${btSub2}</div>`:''}
   </div>`;
 }
 
