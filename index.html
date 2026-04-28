@@ -1811,7 +1811,7 @@ async function loadAdmin(){
             ${u.balanceTierMain?btLabel(u.balanceTierMain, u.balanceScoreMain):''}
             ${u.balanceTierSub?btLabel(u.balanceTierSub, u.balanceScoreSub):''}
             ${u.balanceTierSub2?btLabel(u.balanceTierSub2, u.balanceScoreSub2):''}
-            <span style="font-size:11px;color:var(--text-dim);">${u.main||''}${u.sub?' / '+(u.sub==='all'?'상관없음':u.sub):''}</span>
+            <span style="font-size:11px;color:var(--text-dim);">${u.main||''}${u.sub?' / '+u.sub:''}${u.sub2?' / '+(u.sub2==='all'?'상관없음':u.sub2):''}</span>
           </div>
           ${u.adminMemo?`<div style="font-size:11px;color:#bbaa88;margin-top:2px;">📝 ${u.adminMemo}</div>`:''}
           <div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap;">
