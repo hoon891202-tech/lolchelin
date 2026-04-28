@@ -1075,12 +1075,18 @@ function renderRankingList(members){
     const wr = m.total>0 ? Math.round(m.wins/m.total*100)+'%' : '-';
     return `<div class="rank-row">
       <span class="rank-num ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n'}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
-      <span class="rank-name">${m.realname||m.nick}<span style="font-size:11px;color:var(--text-dim);font-weight:300;margin-left:5px;">${m.birthyear?m.birthyear+'년생 ':''}<span style="color:var(--text-mid);">(${m.nick})</span>${m.isAdmin?'<span style="font-size:10px;color:var(--gold);margin-left:4px;">👑</span>':''}</span></span>
-      ${tierBadges(m.tier, m.currentTier, '10px', m.currentRank, m.currentLP)}
-      <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;flex-shrink:0;">${m.main||''}${m.sub?' / '+( m.sub==='all'?'상관없음':m.sub):''}</span>
-      <div style="margin-left:auto;text-align:right;">
-        <div class="rank-pts">${m.pts}<span class="rank-pts-label">pt</span></div>
-        ${m.total>0?`<span class="rank-wr">${wr}</span>`:''}
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="rank-name">${m.realname||m.nick}${m.isAdmin?'<span style="font-size:10px;color:var(--gold);margin-left:4px;">👑</span>':''}<span style="font-size:11px;color:var(--text-dim);font-weight:300;margin-left:5px;">${m.birthyear?m.birthyear+'년생':''}</span></span>
+          <div style="margin-left:auto;text-align:right;flex-shrink:0;">
+            <div class="rank-pts">${m.pts}<span class="rank-pts-label">pt</span></div>
+            ${m.total>0?`<span class="rank-wr">${wr}</span>`:''}
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          ${tierBadges(m.tier, m.currentTier, '10px', m.currentRank, m.currentLP)}
+          <span style="font-size:11px;color:var(--text-dim);">${m.main||''}${m.sub?' / '+(m.sub==='all'?'상관없음':m.sub):''}</span>
+        </div>
       </div>
     </div>`;
   }).join('');
