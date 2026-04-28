@@ -112,7 +112,7 @@ select.inp option{background:#1e1e1e;}
 .rank-2{color:#c0c0c0;}
 .rank-3{color:#cd7f32;}
 .rank-n{color:var(--text-dim);}
-.rank-name{flex:1;font-size:14px;font-weight:500;}
+.rank-name{flex:1;font-size:14px;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .rank-tier{font-size:11px;padding:2px 6px;border-radius:4px;}
 .rank-main{font-size:11px;color:var(--text-dim);}
 .rank-pts{font-family:'Black Han Sans',sans-serif;font-size:18px;color:var(--gold-light);}
@@ -1077,7 +1077,7 @@ function renderRankingList(members){
       <span class="rank-num ${i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n'}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span>
       <span class="rank-name">${m.realname||m.nick}<span style="font-size:11px;color:var(--text-dim);font-weight:300;margin-left:5px;">${m.birthyear?m.birthyear+'년생 ':''}<span style="color:var(--text-mid);">(${m.nick})</span>${m.isAdmin?'<span style="font-size:10px;color:var(--gold);margin-left:4px;">👑</span>':''}</span></span>
       ${tierBadges(m.tier, m.currentTier, '10px', m.currentRank, m.currentLP)}
-      <span style="font-size:11px;color:var(--text-dim);">${m.main||''}${m.sub?' / '+( m.sub==='all'?'상관없음':m.sub):''}</span>
+      <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;flex-shrink:0;">${m.main||''}${m.sub?' / '+( m.sub==='all'?'상관없음':m.sub):''}</span>
       <div style="margin-left:auto;text-align:right;">
         <div class="rank-pts">${m.pts}<span class="rank-pts-label">pt</span></div>
         ${m.total>0?`<span class="rank-wr">${wr}</span>`:''}
@@ -2629,13 +2629,12 @@ function renderNjTeamBuilder(game){
 }
 
 function njCard(p, game){
-  return `<div draggable="true" ondragstart="njDragStart(event,${game},'${p.uid}')"
-    style="background:var(--bg4);border:1px solid var(--border);border-radius:5px;padding:5px 7px;cursor:grab;user-select:none;font-size:12px;display:flex;align-items:center;gap:5px;"
+  return `<div draggable="true" ondragstart="njDragStart(event,${game},'${p.uid}')" ontouchstart="njTouchStart(event,${game},'${p.uid}')"
+    style="background:var(--bg4);border:1px solid var(--border);border-radius:5px;padding:5px 7px;cursor:grab;user-select:none;font-size:12px;display:flex;align-items:center;gap:5px;overflow:hidden;"
     onmouseover="this.style.borderColor='#8a3030'" onmouseout="this.style.borderColor='var(--border)'">
     ${tierBadges(p.tier, p.currentTier, '10px', p.currentRank, p.currentLP)}
-    ${isAdmin && p.balanceTier ? `<span style="font-size:10px;background:#1a2a4a;color:#88bbff;border:1px solid #3a5a8a;padding:1px 5px;border-radius:8px;flex-shrink:0;">밸 ${p.balanceTier}</span>` : ''}
     <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.realname||p.nick}</span>
-    <span style="font-size:10px;color:var(--text-dim);">${p.main||''}${p.sub&&p.sub!=='all'?' / '+p.sub:p.sub==='all'?' / 무관':''}</span>
+    <span style="font-size:10px;color:var(--text-dim);white-space:nowrap;flex-shrink:0;">${p.main||''}${p.sub&&p.sub!=='all'?' / '+p.sub:p.sub==='all'?' / 무관':''}</span>
   </div>`;
 }
 
@@ -2686,8 +2685,53 @@ window.njDrop = async (e, game, zone) => {
   p.loc = zone;
   njDrag = null;
   renderNjPlayers(game);
-  // Firestore에 배치 저장 (다른 관리자도 볼 수 있게)
   await njSaveArrange(game);
+};
+
+// ── 내전 모바일 터치 드래그 ──
+let njTouch = null, njTouchClone = null;
+window.njTouchStart = (e, game, uid) => {
+  const src = e.currentTarget;
+  njTouch = { game, uid };
+  njTouchClone = src.cloneNode(true);
+  Object.assign(njTouchClone.style, { position:'fixed', opacity:'0.85', pointerEvents:'none', zIndex:'9999', width:src.offsetWidth+'px' });
+  document.body.appendChild(njTouchClone);
+  const t = e.touches[0];
+  njTouchClone.style.left = (t.clientX - src.offsetWidth/2) + 'px';
+  njTouchClone.style.top  = (t.clientY - src.offsetHeight/2) + 'px';
+  const onMove = (ev) => {
+    ev.preventDefault();
+    const tt = ev.touches[0];
+    if(njTouchClone){ njTouchClone.style.left=(tt.clientX-njTouchClone.offsetWidth/2)+'px'; njTouchClone.style.top=(tt.clientY-njTouchClone.offsetHeight/2)+'px'; }
+  };
+  const onEnd = async (ev) => {
+    src.removeEventListener('touchmove', onMove);
+    src.removeEventListener('touchend', onEnd);
+    if(njTouchClone){ document.body.removeChild(njTouchClone); njTouchClone=null; }
+    if(!njTouch) return;
+    const tt = ev.changedTouches[0];
+    let zone=null, cur=document.elementFromPoint(tt.clientX, tt.clientY);
+    while(cur){
+      const id=cur.id||'';
+      if(id===`nj${game}-pool`){ zone='pool'; break; }
+      const m=id.match(new RegExp(`^nj${game}-(t[12]-\\S+)$`));
+      if(m){ zone=m[1]; break; }
+      cur=cur.parentElement;
+    }
+    if(zone){
+      const players=njPlayers[game];
+      const p=players.find(pl=>pl.uid===njTouch.uid);
+      if(p){
+        if(zone!=='pool'){ const ex=players.find(pl=>pl.loc===zone); if(ex) ex.loc=p.loc; }
+        p.loc=zone;
+        renderNjPlayers(game);
+        await njSaveArrange(game);
+      }
+    }
+    njTouch=null;
+  };
+  src.addEventListener('touchmove', onMove, { passive:false });
+  src.addEventListener('touchend', onEnd);
 };
 
 window.njLoadTeam = async (game) => {
@@ -2923,8 +2967,8 @@ async function jpRenderSlotCard(n){
       return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;">
         ${badge}
         <span class="tb t${m.tier}" style="font-size:10px;">${TIER_NAMES[m.tier]||m.tier}</span>
-        <span style="flex:1;">${m.realname||m.nick}<span style="color:var(--text-dim);font-size:11px;margin-left:4px;">(${m.nick})</span></span>
-        <span style="font-size:11px;color:var(--text-dim);">${m.main||''}</span>
+        <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${m.realname||m.nick}<span style="color:var(--text-dim);font-size:11px;margin-left:4px;">(${m.nick})</span></span>
+        <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;flex-shrink:0;">${m.main||''}</span>
         ${removeBtn}
       </div>`;
     }).join('') || '<div style="font-size:12px;color:var(--text-dim);padding:4px 0;">신청자 없음</div>';
@@ -3291,17 +3335,16 @@ function renderDraft(){
 
 function draftCard(p){
   const pts = TIER_PTS_MAP[p.tier]||3;
-  return `<div draggable="true" ondragstart="draftDragStart('${p.id}')" ondragend="draftDragEnd(this)"
-    style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:grab;user-select:none;display:flex;flex-direction:column;gap:4px;width:110px;flex-shrink:0;transition:all 0.15s;"
+  return `<div draggable="true" ondragstart="draftDragStart('${p.id}')" ondragend="draftDragEnd(this)" ontouchstart="draftTouchStart(event,'${p.id}')"
+    style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px 12px;cursor:grab;user-select:none;display:flex;flex-direction:column;gap:4px;width:110px;flex-shrink:0;transition:all 0.15s;overflow:hidden;"
     onmouseover="this.style.borderColor='#8a3030'" onmouseout="this.style.borderColor='var(--border)'">
     <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.realname||p.nick}</div>
-    <div style="font-size:10px;color:var(--text-dim);">${p.birthyear?p.birthyear+'년생 ':''}<span style="color:var(--text-mid);">(${p.nick})</span></div>
+    <div style="font-size:10px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.birthyear?p.birthyear+'년생 ':''}<span style="color:var(--text-mid);">(${p.nick})</span></div>
     <div style="display:flex;align-items:center;justify-content:space-between;">
       ${tierBadges(p.tier, p.currentTier, '10px', p.currentRank, p.currentLP)}
-      ${isAdmin && p.balanceTier ? `<span style="font-size:10px;background:#1a2a4a;color:#88bbff;border:1px solid #3a5a8a;padding:1px 5px;border-radius:8px;">밸 ${p.balanceTier}</span>` : ''}
       <span style="font-size:11px;color:var(--gold-light);font-weight:700;">${pts}pt</span>
     </div>
-    ${p.main?`<div style="font-size:10px;color:var(--text-dim);">${p.main}${p.sub?' / '+(p.sub==='all'?'all':p.sub):''}</div>`:''}
+    ${p.main?`<div style="font-size:10px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.main}${p.sub?' / '+(p.sub==='all'?'all':p.sub):''}</div>`:''}
   </div>`;
 }
 
@@ -3321,6 +3364,51 @@ window.onDrop = (e, zone) => {
   if(p) p.loc = zone;
   draftDragName = null;
   renderDraft();
+};
+
+// ── 드래프트 모바일 터치 드래그 ──
+let draftTouch = null, draftTouchClone = null;
+window.draftTouchStart = (e, id) => {
+  const src = e.currentTarget;
+  draftTouch = id;
+  draftTouchClone = src.cloneNode(true);
+  Object.assign(draftTouchClone.style, { position:'fixed', opacity:'0.85', pointerEvents:'none', zIndex:'9999', width:src.offsetWidth+'px' });
+  document.body.appendChild(draftTouchClone);
+  const t = e.touches[0];
+  draftTouchClone.style.left = (t.clientX - src.offsetWidth/2) + 'px';
+  draftTouchClone.style.top  = (t.clientY - src.offsetHeight/2) + 'px';
+  const onMove = (ev) => {
+    ev.preventDefault();
+    const tt = ev.touches[0];
+    if(draftTouchClone){ draftTouchClone.style.left=(tt.clientX-draftTouchClone.offsetWidth/2)+'px'; draftTouchClone.style.top=(tt.clientY-draftTouchClone.offsetHeight/2)+'px'; }
+  };
+  const onEnd = (ev) => {
+    src.removeEventListener('touchmove', onMove);
+    src.removeEventListener('touchend', onEnd);
+    if(draftTouchClone){ document.body.removeChild(draftTouchClone); draftTouchClone=null; }
+    if(!draftTouch) return;
+    const tt = ev.changedTouches[0];
+    let zone=null, cur=document.elementFromPoint(tt.clientX, tt.clientY);
+    while(cur){
+      const cid=cur.id||'';
+      if(cid==='draft-pool'){ zone='pool'; break; }
+      const m=cid.match(/^dt(\d)$/);
+      if(m){ zone='t'+m[1]; break; }
+      cur=cur.parentElement;
+    }
+    if(zone){
+      if(zone!=='pool'){
+        const i=parseInt(zone[1]);
+        const cnt=draftPlayers.filter(p=>p.loc==='t'+i).length;
+        if(cnt>=5){ showToast('팀이 가득 찼습니다 (5명)'); draftTouch=null; return; }
+      }
+      const p=draftPlayers.find(pl=>pl.id===draftTouch);
+      if(p){ p.loc=zone; renderDraft(); }
+    }
+    draftTouch=null;
+  };
+  src.addEventListener('touchmove', onMove, { passive:false });
+  src.addEventListener('touchend', onEnd);
 };
 
 if ('serviceWorker' in navigator) {
