@@ -897,6 +897,8 @@ setPersistence(auth, browserLocalPersistence);
 const ADMIN_UIDS = ["0vg5Ki56xZTSNh7JJRqOOSUZ3zn1"];
 
 const TIER_NAMES = {C:'챌린저',GM:'그마',M:'마스터',D:'다이아',E:'에메',P:'플레',G:'골드',S:'실버',B:'브론즈',I:'아이언'};
+const BALANCE_TIERS = ['','아이언 하','아이언 중','아이언 상','브론즈 하','브론즈 중','브론즈 상','실버 하','실버 중','실버 상','골드 하','골드 중','골드 상','플래티넘 하','플래티넘 중','플래티넘 상','에메랄드 하','에메랄드 중','에메랄드 상','다이아 하','다이아 중','다이아 상','마스터 하','마스터 중','마스터 상'];
+function btLabel(bt, bs){ const l=BALANCE_TIERS[bt]; if(!l) return ''; const s=Number(bs)||0; const si=s>0?`<span style="color:#88ff88;font-size:9px;margin-left:2px;">+${s}</span>`:s<0?`<span style="color:#ff8888;font-size:9px;margin-left:2px;">${s}</span>`:''; return `<span style="font-size:10px;background:#1a2a4a;color:#88bbff;border:1px solid #3a5a8a;padding:1px 5px;border-radius:8px;white-space:nowrap;flex-shrink:0;">밸 ${l}${si}</span>`; }
 // 최고티어(고정) + 현재솔랭(랭크+LP) 항상 둘 다 표시
 const RANK_NUM = {I:'1', II:'2', III:'3', IV:'4'};
 function tierBadges(tier, currentTier, size='10px', currentRank='', currentLP=''){
@@ -1657,9 +1659,9 @@ const ADM_PER_PAGE = 10;
 let admMemoChanges = {}; // {uid: {balanceTier, adminMemo}}
 
 window.admMemoChange = (uid) => {
-  const bt = document.getElementById(`btier-${uid}`)?.value||'';
+  const bt = parseInt(document.getElementById(`btier-${uid}`)?.value)||0;
   const am = document.getElementById(`amemo-${uid}`)?.value||'';
-  admMemoChanges[uid] = {balanceTier: bt.trim(), adminMemo: am.trim()};
+  admMemoChanges[uid] = {balanceTier: bt||'', adminMemo: am.trim()};
   const btn = document.getElementById('adm-save-all-btn');
   if(btn){ const cnt = Object.keys(admMemoChanges).length; btn.textContent = `📝 메모 일괄저장 (${cnt}건)`; btn.style.borderColor='#ff8800'; btn.style.color='#ffaa44'; }
 };
@@ -1694,7 +1696,7 @@ window.adminSaveAllMemos = async () => {
   if(!entries.length){ showToast('변경된 내용이 없습니다'); return; }
   const savedPage = admPage;
   for(const [uid, data] of entries){
-    await updateDoc(doc(db,'users',uid),{ balanceTier: data.balanceTier, adminMemo: data.adminMemo });
+    await updateDoc(doc(db,'users',uid),{ balanceTier: data.balanceTier, adminMemo: data.adminMemo, balanceScore: 0 });
   }
   admMemoChanges = {};
   showToast(`✅ ${entries.length}명 메모 저장됐습니다`);
@@ -1803,12 +1805,15 @@ async function loadAdmin(){
           </div>
           <div style="display:flex;gap:6px;align-items:center;margin-top:3px;flex-wrap:wrap;">
             <span class="tb t${u.tier}" style="font-size:10px;">${TIER_NAMES[u.tier]||u.tier}</span>
-            ${u.balanceTier?`<span style="font-size:10px;background:#2a3a5a;color:#88bbff;border:1px solid #4a6a9a55;padding:1px 6px;border-radius:10px;">밸 ${u.balanceTier}</span>`:''}
+            ${u.balanceTier?btLabel(u.balanceTier, u.balanceScore):''}
             <span style="font-size:11px;color:var(--text-dim);">${u.main||''}${u.sub?' / '+(u.sub==='all'?'상관없음':u.sub):''}</span>
           </div>
           ${u.adminMemo?`<div style="font-size:11px;color:#bbaa88;margin-top:2px;">📝 ${u.adminMemo}</div>`:''}
           <div style="display:flex;gap:6px;align-items:center;margin-top:6px;flex-wrap:wrap;">
-            <input id="btier-${d.id}" type="text" class="inp" placeholder="밸런스 티어" value="${u.balanceTier||''}" style="width:90px;font-size:11px;padding:3px 6px;" oninput="admMemoChange('${d.id}')">
+            <select id="btier-${d.id}" class="inp" style="width:130px;font-size:11px;padding:3px 6px;" onchange="admMemoChange('${d.id}')">
+              <option value="">-- 미설정 --</option>
+              ${BALANCE_TIERS.slice(1).map((l,i)=>`<option value="${i+1}"${(u.balanceTier==i+1)?` selected`:''}>${l}</option>`).join('')}
+            </select>
             <input id="amemo-${d.id}" type="text" class="inp" placeholder="기타 메모" value="${u.adminMemo||''}" style="flex:1;min-width:100px;font-size:11px;padding:3px 6px;" oninput="admMemoChange('${d.id}')">
           </div>
         </div>
@@ -2534,7 +2539,7 @@ async function njAutoRestoreArrange(game){
 
     const usersSnap3 = await getDocs(collection(db,'users'));
     const balanceMap2 = {};
-    usersSnap3.forEach(d=>{ const ud=d.data(); balanceMap2[d.id] = {balanceTier:ud.balanceTier||'',currentTier:ud.currentTier||'',currentRank:ud.currentRank||'',currentLP:ud.currentLP??''}; });
+    usersSnap3.forEach(d=>{ const ud=d.data(); balanceMap2[d.id] = {balanceTier:ud.balanceTier||'',balanceScore:ud.balanceScore||0,currentTier:ud.currentTier||'',currentRank:ud.currentRank||'',currentLP:ud.currentLP??''}; });
 
     const players = [];
     activeUids.forEach(uid=>{
@@ -2639,6 +2644,7 @@ function njCard(p, game){
     style="background:var(--bg4);border:1px solid var(--border);border-radius:5px;padding:5px 7px;cursor:grab;user-select:none;font-size:12px;display:flex;align-items:center;gap:5px;overflow:hidden;"
     onmouseover="this.style.borderColor='#8a3030'" onmouseout="this.style.borderColor='var(--border)'">
     ${tierBadges(p.tier, p.currentTier, '10px', p.currentRank, p.currentLP)}
+    ${p.balanceTier?btLabel(p.balanceTier, p.balanceScore):''}
     <span style="flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.realname||p.nick}</span>
     <span style="font-size:10px;color:var(--text-dim);white-space:nowrap;flex-shrink:0;">${p.main||''}${p.sub&&p.sub!=='all'?' / '+p.sub:p.sub==='all'?' / 무관':''}</span>
   </div>`;
@@ -2755,7 +2761,7 @@ window.njLoadTeam = async (game) => {
   // users에서 balanceTier + currentTier 가져오기
   const usersSnap2 = await getDocs(collection(db,'users'));
   const balanceMap = {};
-  usersSnap2.forEach(d=>{ const ud=d.data(); balanceMap[d.id] = {balanceTier:ud.balanceTier||'',currentTier:ud.currentTier||'',currentRank:ud.currentRank||'',currentLP:ud.currentLP??''}; });
+  usersSnap2.forEach(d=>{ const ud=d.data(); balanceMap[d.id] = {balanceTier:ud.balanceTier||'',balanceScore:ud.balanceScore||0,currentTier:ud.currentTier||'',currentRank:ud.currentRank||'',currentLP:ud.currentLP??''}; });
 
   // 신청자 목록 구성 (저장된 배치 위치 복원)
   const players = [];
@@ -2763,7 +2769,7 @@ window.njLoadTeam = async (game) => {
     const u = allApplicants[uid];
     const savedLoc = savedMap[uid] || 'pool';
     const bm = balanceMap[uid]||{};
-    players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,currentTier:bm.currentTier,currentRank:bm.currentRank,currentLP:bm.currentLP,main:u.main||'',sub:u.sub||'',loc:savedLoc,balanceTier:bm.balanceTier});
+    players.push({uid,nick:u.nick,realname:u.realname||'',tier:u.tier,currentTier:bm.currentTier,currentRank:bm.currentRank,currentLP:bm.currentLP,main:u.main||'',sub:u.sub||'',loc:savedLoc,balanceTier:bm.balanceTier,balanceScore:bm.balanceScore});
   });
 
   if(!players.length){ showToast('신청자가 없습니다'); return; }
@@ -2831,6 +2837,15 @@ window.njRecordResult = async (game, winner) => {
   const winList = winner==='t1'?t1:t2, loseList = winner==='t1'?t2:t1;
   for(const p of winList) await addDoc(collection(db,'records'),{uid:p.uid,nick:p.nick,type:'naejeon',date,result:'win',pts:1,month,createdAt:now,addedByAdmin:true,naejeonGame:game,naejeonSessionId:sid});
   for(const p of loseList) await addDoc(collection(db,'records'),{uid:p.uid,nick:p.nick,type:'naejeon',date,result:'loss',pts:1,month,createdAt:now,addedByAdmin:true,naejeonGame:game,naejeonSessionId:sid});
+  // 밸런스 티어 자동 업데이트
+  for(const p of [...winList.map(p=>({...p,win:true})), ...loseList.map(p=>({...p,win:false}))]){
+    const ud = (await getDoc(doc(db,'users',p.uid))).data();
+    if(!ud?.balanceTier) continue;
+    let bt = Number(ud.balanceTier), bs = (Number(ud.balanceScore)||0) + (p.win ? 0.5 : -0.5);
+    if(bs >= 1){ bt = Math.min(24, bt+1); bs = 0; }
+    else if(bs <= -1){ bt = Math.max(1, bt-1); bs = 0; }
+    await updateDoc(doc(db,'users',p.uid),{ balanceTier: bt, balanceScore: bs });
+  }
   showToast(`내전${game} 결과 기록 완료! 🎉`);
   njPlayers[game] = [];
   renderNjPlayers(game);
