@@ -1976,6 +1976,11 @@ window.calcAndGiveExemption = async () => {
       <div style="font-size:11px;color:var(--text-dim);">총 ${partKing.totalPts}pt</div>
     </div>`;
 
+  // 해당 월 이미 지급했는지 체크
+  const dupCheck = await getDocs(query(collection(db,'records'), where('month','==',month), where('type','==','exemption'), where('addedByAdmin','==',true)));
+  const alreadyGiven = dupCheck.docs.some(d => d.data().reason?.includes('왕 면제권'));
+  if(alreadyGiven){ showToast(`⚠️ ${month}월 면제권이 이미 지급되었습니다`); return; }
+
   if(!confirm(`내전왕: ${naejeonKing.realname||naejeonKing.nick}\n참여왕: ${partKing.realname||partKing.nick}\n\n각 1장씩 면제권을 지급하시겠습니까?`)) return;
 
   // 최신 데이터 다시 읽어서 현재 면제권 수 확인
