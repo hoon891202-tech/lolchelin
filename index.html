@@ -2130,6 +2130,10 @@ window.calcAndGiveWarning = async () => {
     <div style="color:#ff8888;margin-bottom:6px;font-weight:500;">⚠️ 경고 대상자 ${targets.length}명</div>
     ${targets.map(t=>`<div style="color:var(--text-mid);padding:2px 0;">${t.realname||t.nick} — <span style="color:#ff8800;">${t.pts}pt</span></div>`).join('')}
   </div>`;
+  // 해당 월 이미 자동 경고 부여했는지 체크
+  const warnDupCheck = await getDocs(query(collection(db,'warnlogs'), where('month','==',month), where('reason','==',`${month} 당월 2pt 미만 자동 경고`)));
+  if(!warnDupCheck.empty){ showToast(`⚠️ ${month}월 자동 경고가 이미 부여되었습니다`); return; }
+
   if(!confirm(`경고 대상자 ${targets.length}명:\n${targets.map(t=>`${t.realname||t.nick} (${t.pts}pt)`).join('\n')}\n\n경고를 일괄 부여하시겠습니까?`)) return;
   for(const t of targets){
     const next = Math.min((t.warnings||0)+1, 3);
