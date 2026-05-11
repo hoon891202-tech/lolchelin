@@ -2057,6 +2057,7 @@ window.toggleRest = async (uid, nick, isResting) => {
   if(isResting){
     if(!confirm(`${nick}님의 휴식기를 종료하시겠습니까?`)) return;
     await updateDoc(doc(db,'users',uid),{restActive:false, restFrom:null});
+    await addDoc(collection(db,'restlogs'),{ uid, nick, reason:'관리자 종료', applyFrom:null, endedAt:new Date().toISOString(), createdAt:new Date().toISOString(), addedByAdmin:true });
     showToast(`${nick}님 휴식기 종료됐습니다`);
     loadAdmin();
     return;
@@ -2064,15 +2065,22 @@ window.toggleRest = async (uid, nick, isResting) => {
   const now = new Date();
   const thisMonth = ym(now);
   const nextMonth = ym(new Date(now.getFullYear(), now.getMonth()+1, 1));
+  // 기간 문자열 생성
+  function periodLabel(m){
+    const [y,mo] = m.split('-').map(Number);
+    const lastDay = new Date(y, mo, 0).getDate();
+    const startDay = (m === thisMonth) ? now.getDate() : 1;
+    return `${mo}월 ${startDay}일 ~ ${mo}월 ${lastDay}일`;
+  }
   const applyFrom = await new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:#000b;z-index:9999;display:flex;align-items:center;justify-content:center;';
     overlay.innerHTML = `
-      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px 24px;min-width:220px;">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:20px 24px;min-width:240px;">
         <div style="font-size:13px;font-weight:600;margin-bottom:14px;color:var(--text);">${nick}님 휴식기 시작 월 선택</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
-          <button class="btn btn-sm" style="background:#1a3a5a;border:1px solid #3a6a9a;" id="rt-this">이번달 (${thisMonth})</button>
-          <button class="btn btn-sm" style="background:#1a2a4a;border:1px solid #3a5a8a;" id="rt-next">다음달 (${nextMonth})</button>
+          <button class="btn btn-sm" style="background:#1a3a5a;border:1px solid #3a6a9a;" id="rt-this">이번달 (${periodLabel(thisMonth)})</button>
+          <button class="btn btn-sm" style="background:#1a2a4a;border:1px solid #3a5a8a;" id="rt-next">다음달 (${periodLabel(nextMonth)})</button>
           <button class="btn btn-ghost btn-sm" id="rt-cancel">취소</button>
         </div>
       </div>`;
@@ -2082,11 +2090,16 @@ window.toggleRest = async (uid, nick, isResting) => {
     overlay.querySelector('#rt-cancel').onclick = () => { document.body.removeChild(overlay); resolve(null); };
   });
   if(!applyFrom) return;
-  if(!confirm(`${nick}님을 ${applyFrom}부터 휴식기로 처리하시겠습니까?`)) return;
+  if(!confirm(`${nick}님을 ${periodLabel(applyFrom)} 휴식기로 처리하시겠습니까?`)) return;
   const snap = await getDoc(doc(db,'users',uid));
-  const restCount = snap.exists()?(snap.data().restCount||0):0;
-  await updateDoc(doc(db,'users',uid),{restActive:true, restFrom:applyFrom, restCount:restCount+1});
-  showToast(`${nick}님 휴식기 처리됐습니다 (${applyFrom}~)`);
+  const ud = snap.exists() ? snap.data() : {};
+  await updateDoc(doc(db,'users',uid),{
+    restActive: true, restFrom: applyFrom,
+    restCount: (ud.restCount||0)+1,
+    restUsedThisPeriod: (ud.restUsedThisPeriod||0)+1
+  });
+  await addDoc(collection(db,'restlogs'),{ uid, nick, reason:'관리자 처리', applyFrom, createdAt:new Date().toISOString(), addedByAdmin:true });
+  showToast(`${nick}님 휴식기 처리됐습니다 (${periodLabel(applyFrom)})`);
   loadAdmin();
 };
 
