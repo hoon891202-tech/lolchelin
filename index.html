@@ -801,8 +801,13 @@ select.inp option{background:#1e1e1e;}
   </div>
   <div class="card">
     <div class="card-header"><span class="card-icon">⚙️</span><span class="card-title">회원 관리</span><span class="card-note">관리자 전용</span><button id="show-inactive-btn" class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="toggleShowInactive()">탈퇴 회원 보기</button><button id="adm-save-all-btn" class="btn btn-sm" style="margin-left:auto;background:#1a2a3a;border:1px solid #3a5a8a;color:#88aacc;" onclick="adminSaveAllMemos()">📝 메모 일괄저장</button></div>
-    <div style="padding:10px 14px 0;">
+    <div style="padding:10px 14px 0;display:flex;flex-direction:column;gap:8px;">
       <input id="adm-member-search" type="text" class="inp" placeholder="🔍 이름/닉네임으로 검색..." style="width:100%;font-size:13px;" oninput="filterAdminMembers()">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button id="adm-f-all"  class="btn btn-sm" style="background:var(--gold);color:#1a1a2e;"         onclick="setAdmFilter('all')">전체</button>
+        <button id="adm-f-rest" class="btn btn-sm" style="background:var(--bg3);color:var(--text-mid);" onclick="setAdmFilter('rest')">😴 휴식기 중</button>
+        <button id="adm-f-warn" class="btn btn-sm" style="background:var(--bg3);color:var(--text-mid);" onclick="setAdmFilter('warn')">⚠️ 경고 있음</button>
+      </div>
     </div>
     <div id="admin-list" style="padding:14px;"><div class="loading">불러오는 중...</div></div>
     <div id="adm-pagination" style="display:flex;justify-content:center;align-items:center;gap:6px;padding:10px 14px;flex-wrap:wrap;"></div>
@@ -1654,8 +1659,17 @@ window.findMyPw = async () => {
   }
 };
 
-let admAllMembers = []; // {name, html, uid}
+let admAllMembers = []; // {name, html, uid, isResting, hasWarn}
 let admPage = 1;
+let admFilter = 'all';
+window.setAdmFilter = (f) => {
+  admFilter = f;
+  ['all','rest','warn'].forEach(k => {
+    const el = document.getElementById(`adm-f-${k}`);
+    if(el){ el.style.background = f===k ? 'var(--gold)' : 'var(--bg3)'; el.style.color = f===k ? '#1a1a2e' : 'var(--text-mid)'; }
+  });
+  admPage = 1; renderAdminList();
+};
 const ADM_PER_PAGE = 10;
 let admMemoChanges = {}; // {uid: {balanceTier, adminMemo}}
 
@@ -1714,9 +1728,10 @@ window.filterAdminMembers = function(){
 };
 function renderAdminList(){
   const keyword = (document.getElementById('adm-member-search')?.value||'').trim().toLowerCase();
-  const filtered = keyword
-    ? admAllMembers.filter(m => m.name.toLowerCase().includes(keyword))
-    : admAllMembers;
+  let filtered = admAllMembers;
+  if(admFilter === 'rest') filtered = filtered.filter(m => m.isResting);
+  else if(admFilter === 'warn') filtered = filtered.filter(m => m.hasWarn);
+  if(keyword) filtered = filtered.filter(m => m.name.toLowerCase().includes(keyword));
   const total = filtered.length;
   const pages = Math.max(1, Math.ceil(total / ADM_PER_PAGE));
   admPage = Math.min(admPage, pages);
@@ -1857,7 +1872,7 @@ async function loadAdmin(){
           <button class="adm-btn" style="border-color:#5a3a7a;color:#bb88ee;" onclick="adminResetPassword('${u.email||''}','${u.realname||u.nick}')">🔑 비번재설정</button>
         </div>
       </div>`;
-      admAllMembers.push({ name: (u.realname||u.nick||'') + ' ' + (u.nick||''), html: memberHtml, uid: d.id });
+      admAllMembers.push({ name: (u.realname||u.nick||'') + ' ' + (u.nick||''), html: memberHtml, uid: d.id, isResting: !!(u.restActive && u.restFrom), hasWarn: (u.warnings||0) > 0 });
     }
     // 가나다 정렬
     admAllMembers.sort((a,b) => a.name.localeCompare(b.name, 'ko'));
