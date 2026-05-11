@@ -1,4 +1,4 @@
-const CACHE = 'lolchelin-v2';
+const CACHE = 'lolchelin-v3';
 const STATIC = [
   '/lolchelin/',
   '/lolchelin/index.html'
