@@ -1395,7 +1395,7 @@ async function loadMyPage(){
   // 경고 현황
   const warnCnt = currentProfile.warnings || 0;
   const exemptions = currentProfile.exemptions || 0;
-  const restCount = currentProfile.restCount || 0;
+  const restUsedThisPeriod = currentProfile.restUsedThisPeriod || 0;
   const statusColors = {active:'var(--green)', disqualified:'#ff8800', suspended:'#ff5555'};
   const statusLabels = {active:'정상', disqualified:'자격박탈', suspended:'활동정지'};
   const st = currentProfile.status || 'active';
@@ -1422,7 +1422,7 @@ async function loadMyPage(){
   const isResting = currentProfile.restActive && currentProfile.restFrom;
   document.getElementById('my-rest-status').innerHTML = `
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-      <span style="font-size:12px;color:var(--text-dim);">올해 사용: <span style="color:var(--text);font-weight:500;">${restCount} / 2회</span></span>
+      <span style="font-size:12px;color:var(--text-dim);">올해 사용: <span style="color:var(--text);font-weight:500;">${restUsedThisPeriod} / 2회</span></span>
       ${isResting
         ? `<span style="font-size:11px;background:#2a2a4a;color:#8888cc;border:1px solid #4a4a7a55;padding:2px 9px;border-radius:10px;">😴 휴식중 ${currentProfile.restFrom} ~ ${restEndStr(currentProfile.restFrom)}</span>`
         : `<span style="font-size:11px;color:var(--green);">✅ 활동중</span>`}
@@ -1434,7 +1434,7 @@ async function loadMyPage(){
       <button class="btn btn-ghost btn-sm" onclick="cancelRest()">😴 휴식기 종료</button>
       <span style="font-size:11px;color:var(--text-dim);align-self:center;">현재 휴식중입니다</span>`;
   } else {
-    restBtns.innerHTML = restCount>=2
+    restBtns.innerHTML = restUsedThisPeriod>=2
       ? `<span style="font-size:12px;color:#ff7070;">올해 휴식기를 모두 사용했습니다</span>`
       : `<button class="btn btn-gold btn-sm" onclick="document.getElementById('rest-modal').style.display='flex'">😴 휴식기 신청</button>`;
   }
