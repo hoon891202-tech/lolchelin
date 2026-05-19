@@ -3686,6 +3686,16 @@ window.recordEventResult = async (evId, winner) => {
     showToast(`🏆 ${newScoreA > newScoreB ? ev.teamA.name : ev.teamB.name} 결승 우승!`);
   }
   await updateDoc(doc(db,'events',evId), updates);
+  // 전원에게 자랭 포인트 0.5pt 지급 (1판)
+  const date = todayStr(), month = ym(new Date()), now2 = new Date().toISOString();
+  const allMembers = [...ev.teamA.members, ...ev.teamB.members];
+  for(const m of allMembers){
+    await addDoc(collection(db,'records'),{
+      uid:m.uid, nick:m.nick, type:'jarang', date, games:1, pts:0.5, month,
+      createdAt:now2, eventId:evId, eventRound:round,
+      note:`이벤트: ${ev.title} ${round}판`,
+    });
+  }
   evCache = { ...ev, ...updates };
   renderActiveEvent(evCache);
   await loadEventHistory();
