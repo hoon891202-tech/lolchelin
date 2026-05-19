@@ -280,6 +280,7 @@ select.inp option{background:#1e1e1e;}
   <div class="nav-tab" onclick="showPage('lolsulpam',this)">🃏 롤슐팸</div>
   <div class="nav-tab" onclick="showPage('naejeon',this)">⚔️ 내전</div>
   <div class="nav-tab" onclick="showPage('jarparty',this)">🎮 자랭파티</div>
+  <div class="nav-tab" onclick="showPage('event',this)">🏆 이벤트</div>
   <div class="nav-tab" onclick="showPage('regs',this)">📜 운영 규정</div>
   <div class="nav-tab" onclick="showPage('rule',this)">📋 드래프트 룰북</div>
   <div class="nav-tab" onclick="showPage('apply',this)">✋ 드래프트 신청</div>
@@ -417,6 +418,17 @@ select.inp option{background:#1e1e1e;}
   <div class="card">
     <div class="card-header"><span class="card-icon">📋</span><span class="card-title">자랭파티 기록</span><span class="card-note">날짜별</span></div>
     <div id="jp-history" style="padding:12px;"><div class="loading">불러오는 중...</div></div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 이벤트 ══ -->
+<div id="page-event" class="page">
+<div class="wrap">
+  <div id="ev-active-section"><div class="loading">불러오는 중...</div></div>
+  <div class="card" id="ev-history-card" style="display:none;">
+    <div class="card-header"><span class="card-icon">📜</span><span class="card-title">종료된 이벤트</span></div>
+    <div id="ev-history-list" style="padding:12px;"></div>
   </div>
 </div>
 </div>
@@ -801,6 +813,12 @@ select.inp option{background:#1e1e1e;}
     </div>
   </div>
   <div class="card">
+    <div class="card-header"><span class="card-icon">🏆</span><span class="card-title">이벤트 관리</span><span class="card-note">자랭파티 시즌 이벤트</span></div>
+    <div style="padding:14px;display:flex;flex-direction:column;gap:10px;" id="ev-admin-section">
+      <div class="loading">불러오는 중...</div>
+    </div>
+  </div>
+  <div class="card">
     <div class="card-header"><span class="card-icon">⚙️</span><span class="card-title">회원 관리</span><span class="card-note">관리자 전용</span><button id="show-inactive-btn" class="btn btn-ghost btn-sm" style="margin-left:8px;" onclick="toggleShowInactive()">탈퇴 회원 보기</button><button id="adm-save-all-btn" class="btn btn-sm" style="margin-left:auto;background:#1a2a3a;border:1px solid #3a5a8a;color:#88aacc;" onclick="adminSaveAllMemos()">📝 메모 일괄저장</button></div>
     <div style="padding:10px 14px 0;display:flex;flex-direction:column;gap:8px;">
       <input id="adm-member-search" type="text" class="inp" placeholder="🔍 이름/닉네임으로 검색..." style="width:100%;font-size:13px;" oninput="filterAdminMembers()">
@@ -1031,6 +1049,7 @@ window.showPage = (id, el) => {
   if(id==='rule') loadRulePage();
   if(id==='naejeon') loadNaejeonPage();
   if(id==='jarparty') loadJarPartyPage();
+  if(id==='event') loadEventPage();
   if(id==='regs') loadRegsPage();
 };
 
@@ -1768,7 +1787,8 @@ async function loadAdmin(){
   if(!isAdmin) return;
   const el = document.getElementById('admin-list');
   el.innerHTML = '<div class="loading">불러오는 중...</div>';
-  autoReduceWarnings(); // 관리자 페이지 열릴 때 자동 차감 실행
+  autoReduceWarnings();
+  loadAdminEvents();
   // 날짜 초기화
   document.getElementById('adm-rec-date').value = todayStr();
   // 내전왕/참여왕 정산 월 셀렉트 초기화
@@ -3557,6 +3577,210 @@ window.draftTouchStart = (e, id) => {
   };
   src.addEventListener('touchmove', onMove, { passive:false });
   src.addEventListener('touchend', onEnd);
+};
+
+// ── EVENT ──
+let evCache = null;
+let evAllMembers = [];
+
+async function loadEventPage(){
+  const activeSection = document.getElementById('ev-active-section');
+  activeSection.innerHTML = '<div class="loading">불러오는 중...</div>';
+  const q = query(collection(db,'events'), where('status','==','active'), orderBy('createdAt','desc'));
+  const snap = await getDocs(q);
+  if(snap.empty){
+    activeSection.innerHTML = '<div class="empty-hint">🏆 진행 중인 이벤트가 없습니다</div>';
+    document.getElementById('ev-history-card').style.display = 'none';
+    await loadEventHistory();
+    return;
+  }
+  const evDoc = snap.docs[0];
+  evCache = { id: evDoc.id, ...evDoc.data() };
+  renderActiveEvent(evCache);
+  await loadEventHistory();
+}
+
+function renderActiveEvent(ev){
+  const activeSection = document.getElementById('ev-active-section');
+  const now = new Date();
+  const end = ev.endDate.toDate ? ev.endDate.toDate() : new Date(ev.endDate);
+  const daysLeft = Math.max(0, Math.ceil((end - now) / 86400000));
+  const scoreA = ev.scoreA || 0;
+  const scoreB = ev.scoreB || 0;
+  const results = ev.results || [];
+  const maxRounds = ev.maxRounds || 10;
+  const isCaptainA = currentUser && ev.teamA.captainUid === currentUser.uid;
+  const isCaptainB = currentUser && ev.teamB.captainUid === currentUser.uid;
+  const isCaptain = isCaptainA || isCaptainB;
+  const isOver = results.length >= maxRounds && scoreA !== scoreB;
+  const resultBtns = (!isOver && isCaptain) ? `
+    <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <span style="font-size:12px;color:var(--text-dim);">결과 입력:</span>
+      <button class="btn btn-sm" style="background:#3a1010;border:1px solid #ff4444;color:#ff8888;" onclick="recordEventResult('${ev.id}','A')">🔴 ${ev.teamA.name} 승</button>
+      <button class="btn btn-ghost btn-sm" onclick="recordEventResult('${ev.id}','B')">🔵 ${ev.teamB.name} 승</button>
+    </div>` : '';
+  const resultRows = results.slice().reverse().map((r, i) =>
+    `<tr><td style="color:var(--text-dim);">${results.length - i}판</td><td style="color:${r.winner==='A'?'#ff7070':'#7090e0'};font-weight:500;">${r.winner==='A'?ev.teamA.name:ev.teamB.name} 승</td></tr>`
+  ).join('');
+  const sA = scoreA > scoreB ? 'color:#ff5555;font-size:30px;font-weight:700;' : 'color:var(--text-dim);font-size:24px;';
+  const sB = scoreB > scoreA ? 'color:#5090d0;font-size:30px;font-weight:700;' : 'color:var(--text-dim);font-size:24px;';
+  const memberRow = (m, i) => `
+    <div style="padding:7px 10px;font-size:12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border);">
+      ${i===0?'<span style="font-size:10px;color:var(--gold);border:1px solid var(--gold-dim);padding:1px 5px;border-radius:4px;flex-shrink:0;">팀장</span>':'<span style="font-size:10px;color:var(--text-dim);width:32px;text-align:center;">'+(i+1)+'</span>'}
+      <span>${m.realname}</span>
+    </div>`;
+  activeSection.innerHTML = `
+    <div class="card" style="margin-bottom:12px;">
+      <div class="card-header">
+        <span class="card-icon">🏆</span><span class="card-title">${ev.title}</span>
+        <span class="card-note" style="color:${daysLeft<=3?'#ff8800':'var(--text-dim)'};">D-${daysLeft} | ${results.length}/${maxRounds}판</span>
+      </div>
+      <div style="padding:20px 16px;text-align:center;">
+        <div style="display:flex;justify-content:center;align-items:center;gap:24px;">
+          <div><div style="font-size:12px;color:#ff8888;margin-bottom:6px;">${ev.teamA.name}</div><div style="${sA}">${scoreA}</div></div>
+          <div style="font-size:18px;color:var(--text-dim);">:</div>
+          <div><div style="font-size:12px;color:#88aaff;margin-bottom:6px;">${ev.teamB.name}</div><div style="${sB}">${scoreB}</div></div>
+        </div>
+        ${resultBtns}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div class="card">
+        <div class="card-header" style="padding:10px 12px;"><span class="card-title" style="color:#ff8888;font-size:13px;">🔴 ${ev.teamA.name}</span></div>
+        ${ev.teamA.members.map(memberRow).join('')}
+      </div>
+      <div class="card">
+        <div class="card-header" style="padding:10px 12px;"><span class="card-title" style="color:#88aaff;font-size:13px;">🔵 ${ev.teamB.name}</span></div>
+        ${ev.teamB.members.map(memberRow).join('')}
+      </div>
+    </div>
+    ${results.length > 0 ? `<div class="card"><div class="card-header"><span class="card-icon">📋</span><span class="card-title">판별 기록</span></div><table class="tbl"><thead><tr><th>판</th><th>결과</th></tr></thead><tbody>${resultRows}</tbody></table></div>` : ''}
+  `;
+}
+
+window.recordEventResult = async (evId, winner) => {
+  const ev = evCache;
+  if(!ev) return;
+  if(ev.teamA.captainUid !== currentUser.uid && ev.teamB.captainUid !== currentUser.uid){
+    showToast('팀장만 결과를 입력할 수 있습니다'); return;
+  }
+  const teamName = winner === 'A' ? ev.teamA.name : ev.teamB.name;
+  if(!confirm(`${teamName} 승리로 기록할까요?`)) return;
+  const results = ev.results || [];
+  const round = results.length + 1;
+  const newResults = [...results, { round, winner, recordedBy: currentUser.uid, recordedAt: new Date() }];
+  const newScoreA = newResults.filter(r=>r.winner==='A').length;
+  const newScoreB = newResults.filter(r=>r.winner==='B').length;
+  const maxRounds = ev.maxRounds || 10;
+  const updates = { results: newResults, scoreA: newScoreA, scoreB: newScoreB };
+  if(newResults.length >= maxRounds){
+    if(newScoreA !== newScoreB){
+      updates.status = 'ended';
+      showToast(`🏆 ${newScoreA > newScoreB ? ev.teamA.name : ev.teamB.name} 우승!`);
+    } else {
+      showToast('10판 동점! 11번째 단판 결승을 진행하세요.');
+      updates.maxRounds = 11;
+    }
+  } else if(newResults.length === 11){
+    updates.status = 'ended';
+    showToast(`🏆 ${newScoreA > newScoreB ? ev.teamA.name : ev.teamB.name} 결승 우승!`);
+  }
+  await updateDoc(doc(db,'events',evId), updates);
+  evCache = { ...ev, ...updates };
+  renderActiveEvent(evCache);
+  await loadEventHistory();
+};
+
+async function loadEventHistory(){
+  const histCard = document.getElementById('ev-history-card');
+  const histList = document.getElementById('ev-history-list');
+  const q = query(collection(db,'events'), where('status','==','ended'), orderBy('createdAt','desc'));
+  const snap = await getDocs(q);
+  if(snap.empty){ histCard.style.display = 'none'; return; }
+  histCard.style.display = 'block';
+  histList.innerHTML = snap.docs.map(d => {
+    const ev = d.data();
+    const sA = ev.scoreA || 0, sB = ev.scoreB || 0;
+    const winnerName = sA > sB ? ev.teamA.name : sB > sA ? ev.teamB.name : '동점';
+    return `<div style="padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span style="font-size:13px;font-weight:500;">${ev.title}</span>
+      <span style="font-size:12px;color:#ff8888;">${ev.teamA.name} ${sA}</span>
+      <span style="font-size:12px;color:var(--text-dim);">:</span>
+      <span style="font-size:12px;color:#88aaff;">${sB} ${ev.teamB.name}</span>
+      <span style="font-size:12px;color:var(--gold);margin-left:auto;">🏆 ${winnerName}</span>
+    </div>`;
+  }).join('');
+}
+
+async function loadAdminEvents(){
+  const section = document.getElementById('ev-admin-section');
+  const uSnap = await getDocs(query(collection(db,'users'), where('active','==',true), orderBy('realname')));
+  evAllMembers = uSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+  const memberOptions = evAllMembers.map(m => `<option value="${m.uid}">${m.realname} (${(m.nick||'').split('#')[0]})</option>`).join('');
+  const activeQ = query(collection(db,'events'), where('status','==','active'), orderBy('createdAt','desc'));
+  const activeSnap = await getDocs(activeQ);
+  let html = '';
+  if(!activeSnap.empty){
+    const ev = { id: activeSnap.docs[0].id, ...activeSnap.docs[0].data() };
+    html += `<div style="background:#1a2a1a;border:1px solid #3a6a3a;border-radius:8px;padding:12px;">
+      <div style="font-size:13px;color:#70e090;font-weight:500;margin-bottom:6px;">✅ 진행 중: ${ev.title}</div>
+      <div style="font-size:12px;color:var(--text-dim);">🔴 ${ev.teamA.name} ${ev.scoreA||0}승 vs 🔵 ${ev.teamB.name} ${ev.scoreB||0}승 | ${(ev.results||[]).length}/${ev.maxRounds||10}판</div>
+      <div style="margin-top:10px;"><button class="btn btn-danger btn-sm" onclick="adminEndEvent('${ev.id}')">🔚 강제 종료</button></div>
+    </div>`;
+  }
+  const selRow = (prefix, i) => `<select id="ev-${prefix}${i}" class="inp" style="width:100%;font-size:12px;"><option value="">-- ${i}번${i===1?' (팀장)':''} --</option>${memberOptions}</select>`;
+  html += `
+    <div style="font-size:13px;color:var(--text-mid);font-weight:500;margin-top:4px;">➕ 새 이벤트 생성</div>
+    <input id="ev-title" class="inp" placeholder="이벤트 이름 (예: 5월 시즌 이벤트)" style="width:100%;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <div style="font-size:12px;color:#ff8888;font-weight:500;">🔴 팀A</div>
+        <input id="ev-team-a-name" class="inp" placeholder="팀 이름" style="width:100%;font-size:12px;">
+        ${[1,2,3,4,5].map(i=>selRow('a',i)).join('')}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px;">
+        <div style="font-size:12px;color:#88aaff;font-weight:500;">🔵 팀B</div>
+        <input id="ev-team-b-name" class="inp" placeholder="팀 이름" style="width:100%;font-size:12px;">
+        ${[1,2,3,4,5].map(i=>selRow('b',i)).join('')}
+      </div>
+    </div>
+    <button class="btn btn-gold btn-sm" onclick="adminCreateEvent()">🏆 이벤트 생성</button>`;
+  section.innerHTML = html;
+}
+
+window.adminCreateEvent = async () => {
+  const title = document.getElementById('ev-title').value.trim();
+  if(!title){ showToast('이벤트 이름을 입력하세요'); return; }
+  const teamAName = document.getElementById('ev-team-a-name').value.trim() || '레드팀';
+  const teamBName = document.getElementById('ev-team-b-name').value.trim() || '블루팀';
+  const getMember = (p, i) => {
+    const uid = document.getElementById(`ev-${p}${i}`).value;
+    const m = evAllMembers.find(x => x.uid === uid);
+    return m ? { uid: m.uid, realname: m.realname, nick: m.nick } : null;
+  };
+  const membersA = [1,2,3,4,5].map(i => getMember('a',i)).filter(Boolean);
+  const membersB = [1,2,3,4,5].map(i => getMember('b',i)).filter(Boolean);
+  if(membersA.length < 5){ showToast('팀A 멤버 5명을 모두 선택하세요'); return; }
+  if(membersB.length < 5){ showToast('팀B 멤버 5명을 모두 선택하세요'); return; }
+  const allUids = [...membersA, ...membersB].map(m=>m.uid);
+  if(new Set(allUids).size !== 10){ showToast('중복된 멤버가 있습니다'); return; }
+  const now = new Date();
+  const endDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  await addDoc(collection(db,'events'), {
+    title, status:'active', startDate:now, endDate, maxRounds:10,
+    teamA:{ name:teamAName, members:membersA, captainUid:membersA[0].uid },
+    teamB:{ name:teamBName, members:membersB, captainUid:membersB[0].uid },
+    results:[], scoreA:0, scoreB:0, createdAt:now, createdBy:currentUser.uid,
+  });
+  showToast(`✅ ${title} 이벤트가 생성되었습니다!`);
+  loadAdminEvents();
+};
+
+window.adminEndEvent = async (evId) => {
+  if(!confirm('이벤트를 강제 종료할까요?')) return;
+  await updateDoc(doc(db,'events',evId), { status:'ended' });
+  showToast('이벤트가 종료되었습니다');
+  loadAdminEvents();
 };
 
 if ('serviceWorker' in navigator) {
