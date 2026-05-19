@@ -3730,8 +3730,9 @@ async function loadEventHistory(){
 
 async function loadAdminEvents(){
   const section = document.getElementById('ev-admin-section');
-  const uSnap = await getDocs(query(collection(db,'users'), where('active','==',true), orderBy('realname')));
-  evAllMembers = uSnap.docs.map(d => ({ uid: d.id, ...d.data() }));
+  try {
+  const uSnap = await getDocs(query(collection(db,'users'), where('active','==',true)));
+  evAllMembers = uSnap.docs.map(d => ({ uid: d.id, ...d.data() })).sort((a,b)=>(a.realname||'').localeCompare(b.realname||''));
   const memberOptions = evAllMembers.map(m => `<option value="${m.uid}">${m.realname} (${(m.nick||'').split('#')[0]})</option>`).join('');
   const activeQ = query(collection(db,'events'), where('status','==','active'));
   const activeSnap = await getDocs(activeQ);
@@ -3762,6 +3763,9 @@ async function loadAdminEvents(){
     </div>
     <button class="btn btn-gold btn-sm" onclick="adminCreateEvent()">🏆 이벤트 생성</button>`;
   section.innerHTML = html;
+  } catch(e) {
+    section.innerHTML = `<div style="color:#ff7070;font-size:12px;">오류: ${e.message}</div>`;
+  }
 }
 
 window.adminCreateEvent = async () => {
