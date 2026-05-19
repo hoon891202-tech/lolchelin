@@ -3616,7 +3616,7 @@ function renderActiveEvent(ev){
   const winsB = ev.winsB||0, lossesB = ev.lossesB||0;
   const isCaptainA = currentUser && ev.teamA.captainUid === currentUser.uid;
   const isCaptainB = currentUser && ev.teamB.captainUid === currentUser.uid;
-  const canDelete = isAdmin || isCaptainA || isCaptainB;
+  const canDelete = isAdmin;
 
   const inputBtnsA = (isCaptainA && rA.length < maxRounds) ? `
     <div style="display:flex;gap:6px;margin-top:8px;justify-content:center;">
@@ -3824,8 +3824,11 @@ window.deleteEventRound = async (evId, team, round) => {
   };
   if(ev.status==='ended') updates.status = 'active';
   await updateDoc(doc(db,'events',evId), updates);
-  const rSnap = await getDocs(query(collection(db,'records'), where('eventId','==',evId), where('eventTeam','==',team), where('eventRound','==',round)));
-  for(const d of rSnap.docs) await deleteDoc(d.ref);
+  const rSnap = await getDocs(query(collection(db,'records'), where('eventId','==',evId)));
+  for(const d of rSnap.docs){
+    const r = d.data();
+    if(r.eventTeam===team && r.eventRound===round) await deleteDoc(d.ref);
+  }
   evCache = { ...ev, ...updates };
   renderActiveEvent(evCache);
   showToast(`${round}판 기록이 삭제되었습니다`);
