@@ -3736,7 +3736,8 @@ async function loadEventHistory(){
       <span style="font-size:12px;color:#ff8888;">${ev.teamA.name} ${wA}승${lA}패</span>
       <span style="font-size:12px;color:var(--text-dim);">vs</span>
       <span style="font-size:12px;color:#88aaff;">${ev.teamB.name} ${wB}승${lB}패</span>
-      <span style="font-size:12px;color:var(--gold);margin-left:auto;">🏆 ${winnerName}</span>
+      <span style="font-size:12px;color:var(--gold);">🏆 ${winnerName}</span>
+      ${isAdmin?`<button class="btn btn-danger btn-sm" style="margin-left:auto;padding:2px 8px;font-size:11px;" onclick="deleteEvent('${d.id}')">삭제</button>`:''}
     </div>`;
   }).join('');
 }
@@ -3832,6 +3833,13 @@ window.deleteEventRound = async (evId, team, round) => {
   evCache = { ...ev, ...updates };
   renderActiveEvent(evCache);
   showToast(`${round}판 기록이 삭제되었습니다`);
+};
+
+window.deleteEvent = async (evId) => {
+  if(!confirm('이벤트를 삭제할까요?\n관련 포인트 기록은 유지됩니다.')) return;
+  await deleteDoc(doc(db,'events',evId));
+  showToast('이벤트가 삭제되었습니다');
+  loadEventHistory();
 };
 
 window.adminEndEvent = async (evId) => {
