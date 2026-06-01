@@ -2189,15 +2189,18 @@ window.calcAndGiveWarning = async () => {
   const monthStart = `${yr}-${String(mo).padStart(2,'0')}-01`;
   const preview = document.getElementById('auto-warn-preview');
   preview.innerHTML = '<div class="loading" style="font-size:12px;">대상자 확인 중...</div>';
+  // 해당 월 휴식기 사용 uid 미리 로드 (현재 종료됐어도 해당 월 restlogs 기준)
+  const restLogsSnap = await getDocs(query(collection(db,'restlogs'), where('applyFrom','==',month)));
+  const restingUids = new Set(restLogsSnap.docs.map(d => d.data().uid));
   const usersSnap = await getDocs(collection(db,'users'));
   const targets = [];
   for(const d of usersSnap.docs){
     const u = d.data();
     if(!u.active) continue;
-    // 당월 가입자 제외 (createdAt 기준)
-    if(u.createdAt && u.createdAt.slice(0,10) >= monthStart) continue;
-    // 현재 휴식기 중인 회원 제외
-    if(u.restActive && u.restFrom) continue;
+    // 당월 가입자 제외 (joinedAt 기준)
+    if(u.joinedAt && u.joinedAt.slice(0,10) >= monthStart) continue;
+    // 해당 월 휴식기 회원 제외 (restlogs 기준 — 종료됐어도 해당 월 사용자 제외)
+    if(restingUids.has(d.id)) continue;
     // 포인트 확인
     const recSnap = await getDocs(query(collection(db,'records'), where('uid','==',d.id), where('month','==',month)));
     let pts = 0;
