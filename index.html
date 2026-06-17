@@ -450,7 +450,7 @@ select.inp option{background:#1e1e1e;}
       <span class="card-title">운영 규정집</span>
       <span id="regs-edit-btn" style="margin-left:auto;cursor:pointer;font-size:11px;color:#ff7070;display:none;" onclick="toggleRegsEdit()">✏️ 수정</span>
     </div>
-    <div id="regs-view" style="padding:16px;white-space:pre-wrap;font-size:15px;line-height:1.9;color:#ffffff;font-family:'Noto Sans KR',sans-serif;"></div>
+    <div id="regs-view" style="padding:16px;"></div>
     <div id="regs-edit" style="display:none;padding:16px;">
       <textarea id="regs-textarea" class="inp" style="width:100%;height:500px;resize:vertical;font-size:13px;line-height:1.7;"></textarea>
       <div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end;">
@@ -2415,8 +2415,218 @@ async function loadRegsPage(){
 }
 
 function renderRegs(){
-  document.getElementById('regs-view').textContent = regsContent;
+  document.getElementById('regs-view').innerHTML = REGS_HTML;
+  const pre = document.getElementById('regs-orig-text');
+  if(pre && regsContent) pre.textContent = regsContent;
 }
+
+window.toggleRegsOrig = () => {
+  const body = document.getElementById('regs-orig-body');
+  const btn = document.getElementById('regs-orig-btn');
+  if(!body) return;
+  const isHidden = body.style.display === 'none' || body.style.display === '';
+  body.style.display = isHidden ? 'block' : 'none';
+  btn.textContent = isHidden ? '접기 ▴' : '펼치기 ▾';
+  if(isHidden){
+    const pre = document.getElementById('regs-orig-text');
+    if(pre && regsContent) pre.textContent = regsContent;
+  }
+};
+
+const REGS_HTML = `
+<style>
+.r-chapter{margin-bottom:24px;}
+.r-chapter-title{display:flex;align-items:center;gap:10px;padding:10px 0;margin-bottom:12px;border-bottom:2px solid var(--border);}
+.r-chapter-name{font-family:'Black Han Sans',sans-serif;font-size:16px;color:var(--gold-light);letter-spacing:2px;}
+.r-sec{background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:10px;}
+.r-sec-head{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#303560;border-bottom:1px solid var(--border);}
+.r-sec-num{font-size:10px;background:var(--red);color:#fff;border-radius:4px;padding:2px 6px;font-weight:700;letter-spacing:0.5px;flex-shrink:0;}
+.r-sec-title{font-family:'Black Han Sans',sans-serif;font-size:13px;color:#fff;letter-spacing:1px;}
+.r-sec-body{padding:12px 14px;display:flex;flex-direction:column;gap:6px;}
+.r-item{display:flex;gap:8px;align-items:flex-start;}
+.r-dot{color:var(--gold);font-size:12px;flex-shrink:0;margin-top:3px;}
+.r-txt{font-size:13px;color:var(--text-mid);line-height:1.65;}
+.r-tag{display:inline-block;font-size:10px;font-weight:500;padding:1px 6px;border-radius:3px;margin-right:3px;vertical-align:middle;}
+.r-tr{background:#3a1010;color:#ff8080;}
+.r-tb{background:#1a2a3a;color:#70b0ff;}
+.r-tg{background:#1a2a1a;color:#70e090;}
+.r-to{background:#2a1f00;color:#d4a820;}
+.r-num-list{background:#252940;border-radius:6px;padding:8px 10px;border-left:2px solid var(--red);display:flex;flex-direction:column;gap:5px;}
+.r-ni{display:flex;gap:8px;align-items:flex-start;}
+.r-nb{background:var(--red);color:#fff;border-radius:3px;padding:0 5px;font-size:10px;font-weight:700;flex-shrink:0;line-height:16px;height:16px;margin-top:2px;}
+.r-nt{font-size:12px;color:var(--text-mid);line-height:1.6;}
+.r-info{background:#252940;border-radius:6px;padding:8px 12px;border-left:2px solid var(--blue);}
+.r-info .r-txt{color:var(--text-dim);font-size:12px;}
+.r-orig-wrap{margin-top:28px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.r-orig-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#303560;cursor:pointer;user-select:none;}
+.r-orig-head-t{font-family:'Black Han Sans',sans-serif;font-size:13px;color:var(--text-mid);letter-spacing:1px;}
+.r-orig-btn{font-size:11px;color:var(--text-dim);background:#2a2e50;border:1px solid var(--border);border-radius:4px;padding:3px 10px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;}
+.r-orig-body{display:none;padding:16px;border-top:1px solid var(--border);}
+.r-orig-body pre{font-size:12px;color:var(--text-dim);white-space:pre-wrap;line-height:1.9;font-family:'Noto Sans KR',sans-serif;}
+</style>
+
+<div class="r-chapter">
+  <div class="r-chapter-title"><span style="font-size:18px;">👑</span><span class="r-chapter-name">1장. 운영진 구성 및 선거</span></div>
+  <div class="r-sec">
+    <div class="r-sec-head"><span class="r-sec-num">1.1</span><span class="r-sec-title">운영진 구성</span></div>
+    <div class="r-sec-body">
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">모임원 <span class="r-tag r-tb">10명당</span> 운영진 1인 (모임장 포함, <span class="r-tag r-tr">내림</span> 산정)</span></div>
+      <div class="r-info"><div class="r-item"><span class="r-dot" style="color:var(--blue);">·</span><span class="r-txt">예시) 모임원 39명 → 운영진 3명 (모임장1 + 운영진2)</span></div></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">운영진은 <span class="r-tag r-tb">최소 3인</span> 유지</span></div>
+    </div>
+  </div>
+  <div class="r-sec">
+    <div class="r-sec-head"><span class="r-sec-num">1.2</span><span class="r-sec-title">운영진의 임기</span></div>
+    <div class="r-sec-body">
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">모임장 임기 <span class="r-tag r-to">12개월</span> · 운영진 임기 <span class="r-tag r-to">6개월</span> · 연임 가능</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">운영진 후보: 현 운영진 추천 or <span class="r-tag r-tb">모임원 5인 이상 추천</span>을 받은 자</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">운영진은 정모 참여 가능 + <span class="r-tag r-tb">오프라인 확인</span>된 인원 중 선출</span></div>
+    </div>
+  </div>
+  <div class="r-sec">
+    <div class="r-sec-head"><span class="r-sec-num">1.3</span><span class="r-sec-title">자격 박탈 및 해임</span></div>
+    <div class="r-sec-body">
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt"><span class="r-tag r-tr">누적 경고 2회</span> 이상 시 즉시 자격 박탈</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">모임원 <span class="r-tag r-to">20%</span> (모임장은 <span class="r-tag r-to">30%</span>) 이상 발의 → 투표자 과반 찬성 시 즉시 해임</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">해임 시 후임자 <span class="r-tag r-tb">2주 이내</span> 선출 · 전임자 남은 임기 승계</span></div>
+      <div class="r-info"><div class="r-item"><span class="r-dot" style="color:var(--blue);">·</span><span class="r-txt">귀책 없는 사임 시: 사임자 추천 후보 + 운영진 추천 후보 중 남은 운영진 투표로 결정</span></div></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">투표 무기명 진행 · 해임 발의자 신상 <span class="r-tag r-tb">비밀 유지 원칙</span></span></div>
+    </div>
+  </div>
+</div>
+
+<div class="r-chapter">
+  <div class="r-chapter-title"><span style="font-size:18px;">📋</span><span class="r-chapter-name">2장. 모임 활동 규정</span></div>
+  <div class="r-sec">
+    <div class="r-sec-head"><span class="r-sec-num">2.1</span><span class="r-sec-title">모임원의 정의 및 의무</span></div>
+    <div class="r-sec-body">
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">소모임 앱 · 오픈톡방 · 디스코드 <span class="r-tag r-tb">3가지 모두 참여 원칙</span></span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">월 <span class="r-tag r-to">2set 이상</span> 게임 참여 유지</span></div>
+      <div class="r-num-list">
+        <div class="r-ni"><span class="r-nb">내전</span><span class="r-nt">3판 2선승제 = 1set (다회차 누적 인정)</span></div>
+        <div class="r-ni"><span class="r-nb">자랭</span><span class="r-nt">5인 자랭 1판 = 0.5set (기록 제출 필수) · 하루 같은 멤버로 최대 2.5pt · 멤버 변경 시 누적 가능</span></div>
+        <div class="r-ni"><span class="r-nb">일반</span><span class="r-nt">일반/신속대전 1판 = 1/3set</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="r-sec">
+    <div class="r-sec-head"><span class="r-sec-num">2.2</span><span class="r-sec-title">휴식기 신청</span></div>
+    <div class="r-sec-body">
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">연 <span class="r-tag r-to">2회</span> 신청 가능 · 매월 <span class="r-tag r-to">20일 이후</span> 신청 시 익월부터 적용</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">휴식기 중 월 참여 기준 미충족 시 <span class="r-tag r-tg">경고 면제</span></span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">신청 당월 즉시 사용 <span class="r-tag r-tr">불가</span></span></div>
+    </div>
+  </div>
+</div>
+
+<div class="r-chapter">
+  <div class="r-chapter-title"><span style="font-size:18px;">🎮</span><span class="r-chapter-name">3장. 게임 운영 세부 규칙</span></div>
+  <div class="r-sec">
+    <div class="r-sec-head"><span class="r-sec-num">3.1</span><span class="r-sec-title">내전 규정 — 콘텐츠 우선순위</span></div>
+    <div class="r-sec-body">
+      <div class="r-num-list" style="border-left-color:var(--gold);">
+        <div class="r-ni"><span class="r-nb" style="background:var(--gold);color:#111;">1</span><span class="r-nt">정기 내전</span></div>
+        <div class="r-ni"><span class="r-nb" style="background:var(--gold);color:#111;">2</span><span class="r-nt">이벤트 게임</span></div>
+        <div class="r-ni"><span class="r-nb" style="background:var(--gold);color:#111;">3</span><span class="r-nt">신청 내전 (항시내전)</span></div>
+        <div class="r-ni"><span class="r-nb" style="background:#5090d0;">4</span><span class="r-nt">자유랭크</span></div>
+        <div class="r-ni"><span class="r-nb" style="background:#5090d0;">5</span><span class="r-nt">듀오랭크</span></div>
+        <div class="r-ni"><span class="r-nb" style="background:#666;">6</span><span class="r-nt">일반게임</span></div>
+        <div class="r-ni"><span class="r-nb" style="background:#666;">7</span><span class="r-nt">칼바람</span></div>
+      </div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">상위 콘텐츠 모집·진행 중 <span class="r-tag r-tr">하위 콘텐츠로 인원 분산·이탈 유도 금지</span></span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">아래 행위 반복 시 <span class="r-tag r-tr">모집 방해</span>로 판단</span></div>
+      <div class="r-num-list">
+        <div class="r-ni"><span class="r-nb">1</span><span class="r-nt">특정 인원 참여 여부에 따라 별도 파티 반복 생성</span></div>
+        <div class="r-ni"><span class="r-nb">2</span><span class="r-nt">기존 모집 인원 반복 이탈</span></div>
+        <div class="r-ni"><span class="r-nb">3</span><span class="r-nt">특정 콘텐츠 성사 방해 목적의 모집</span></div>
+        <div class="r-ni"><span class="r-nb">4</span><span class="r-nt">디스코드·오픈톡 등에서 불참·이탈 유도</span></div>
+      </div>
+      <div class="r-info"><div class="r-item"><span class="r-dot" style="color:var(--blue);">·</span><span class="r-txt">단순 취향 차이·일시적 선택은 제재 아님 · 반복성·의도성·분위기 저해 여부 종합 판단</span></div></div>
+    </div>
+  </div>
+  <div class="r-sec">
+    <div class="r-sec-head"><span class="r-sec-num">3.2</span><span class="r-sec-title">내전 및 게임 문화 운영 방침</span></div>
+    <div class="r-sec-body">
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">내전은 <span class="r-tag r-tg">승패 + 모든 참여자의 즐거움</span> 모두 중요한 가치</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">조합 제안·의견 제시는 가능하나 아래 행위는 <span class="r-tag r-tr">제한</span></span></div>
+      <div class="r-num-list">
+        <div class="r-ni"><span class="r-nb">1</span><span class="r-nt">반복적인 챔피언·포지션 강요</span></div>
+        <div class="r-ni"><span class="r-nb">2</span><span class="r-nt">실력 차이를 이유로 한 과도한 지적</span></div>
+        <div class="r-ni"><span class="r-nb">3</span><span class="r-nt">요청하지 않은 지속적인 훈수</span></div>
+        <div class="r-ni"><span class="r-nb">4</span><span class="r-nt">특정 인원을 특정 역할로 고정시키는 행위</span></div>
+        <div class="r-ni"><span class="r-nb">5</span><span class="r-nt">게임 내 실수를 공개적으로 비난하는 행위</span></div>
+      </div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">피드백은 <span class="r-tag r-tb">상대방 동의·요청 우선</span> · 강압적 오더 제한</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">운영진은 게임 실력보다 <span class="r-tag r-tg">모임 분위기·참여 경험</span>을 중요하게 고려</span></div>
+    </div>
+  </div>
+  <div class="r-sec">
+    <div class="r-sec-head"><span class="r-sec-num">3.3</span><span class="r-sec-title">분쟁 처리 및 운영 절차</span></div>
+    <div class="r-sec-body">
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">분쟁 발생 시 <span class="r-tag r-tb">사실관계 우선 확인</span> 후 판단</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt"><span class="r-tag r-tr">공개 저격·티어 비하·인신공격·미확인 비난</span> 지양</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">평판·친분·위치 관계없이 <span class="r-tag r-tb">동일 기준</span> 적용</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">운영진·밀접 관계자가 당사자인 경우 해당 운영진 <span class="r-tag r-tb">판단 제외</span></span></div>
+      <div class="r-info"><div class="r-item"><span class="r-dot" style="color:var(--blue);">·</span><span class="r-txt">친분이 아닌 확인 가능한 사실과 규정을 기준으로 판단</span></div></div>
+    </div>
+  </div>
+  <div class="r-sec">
+    <div class="r-sec-head"><span class="r-sec-num">3.4</span><span class="r-sec-title">자유랭크 및 일반게임</span></div>
+    <div class="r-sec-body">
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">모집 시 <span class="r-tag r-tg">즐겜</span> / <span class="r-tag r-tr">빡겜</span> 구분 및 티어 제한 설정 가능</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt"><span class="r-tag r-tr">빡겜</span> 모집자는 리플레이 다운로드 원칙 (분쟁 대비)</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">낮은 티어 빡겜 시 부캐 참여 가능 · 단 강한 오더·피드백 <span class="r-tag r-tr">제한</span></span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">고의 게임 방해 시 모집자가 해당 플레이어 <span class="r-tag r-tr">퇴출</span> 가능</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">퇴출 분쟁 시 <span class="r-tag r-to">문철</span>(운영진·배심원 판결) 진행 · 패배자 <span class="r-tag r-tr">경고 1회</span></span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt"><span class="r-tag r-tg">즐겜</span> = 과정·분위기 중시 (승리 포기·팀플 무시 아님) · 타인 경험 저해 시 <span class="r-tag r-tr">제한</span></span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">새 챔피언·포지션 도전 가능 · 참여자에 대한 <span class="r-tag r-tb">최소한의 배려 원칙</span></span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">단순 숙련도 부족·실수·패배 자체는 <span class="r-tag r-tg">제재 사유 아님</span></span></div>
+    </div>
+  </div>
+</div>
+
+<div class="r-chapter">
+  <div class="r-chapter-title"><span style="font-size:18px;">🏕️</span><span class="r-chapter-name">4장. 오프라인 벙 및 기타</span></div>
+  <div class="r-sec">
+    <div class="r-sec-head"><span class="r-sec-num">4.1</span><span class="r-sec-title">오프라인 벙 개설</span></div>
+    <div class="r-sec-body">
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">모임원 <span class="r-tag r-tb">4인 이상</span> 오프라인 모임 시 반드시 벙 개설 요청</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">최초 오프라인 벙 개설 조건: <span class="r-tag r-to">월 2pt 획득</span> 이후 가능</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">운영진은 벙 단톡방에 모니터링(CCTV) 인원으로 참여</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">인지된 커플은 <span class="r-tag r-to">2인 → 1인</span>으로 간주</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">사전에 인원을 미리 짜는 벙 <span class="r-tag r-tr">지양</span> · 운영진 확인 필요</span></div>
+    </div>
+  </div>
+  <div class="r-sec">
+    <div class="r-sec-head"><span class="r-sec-num">4.2</span><span class="r-sec-title">경고 및 패널티</span></div>
+    <div class="r-sec-body">
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">규칙 위반 시 <span class="r-tag r-tr">경고 1회</span> · 지각은 <span class="r-tag r-tr">0.5회</span></span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt"><span class="r-tag r-tr">경고 3회</span> 누적 → 1개월 활동 정지 · 정지 중 타 모임 가입 시 <span class="r-tag r-tr">영구 퇴출</span></span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">경고 분기별 <span class="r-tag r-tg">1회 면제</span> (누적 불가) · 이벤트 면제권은 누적 가능</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">면제권 2매 → 양도권 1매 변경 가능 · <span class="r-tag r-tb">무상 양도만 허용</span></span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">금전거래·모임 내 영업·불법 내용 적발 시 <span class="r-tag r-tr">즉시 강퇴</span></span></div>
+    </div>
+  </div>
+  <div class="r-sec">
+    <div class="r-sec-head"><span class="r-sec-num">4.3</span><span class="r-sec-title">이성 관련 문제</span></div>
+    <div class="r-sec-body">
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">모임 내 연애 후 결별 시 양측 모두 <span class="r-tag r-tr">1개월 퇴출</span> 원칙 (일방적 귀책 입증 시 예외)</span></div>
+      <div class="r-item"><span class="r-dot">▸</span><span class="r-txt">원치 않는 개인 연락 2회 이상 or 2인 이상 제보 시 <span class="r-tag r-tr">특별 경고</span> 부여</span></div>
+      <div class="r-info"><div class="r-item"><span class="r-dot" style="color:var(--blue);">·</span><span class="r-txt">특별 경고: 면제권 사용 불가 · 누적 기간 6개월</span></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="r-orig-wrap">
+  <div class="r-orig-head" onclick="toggleRegsOrig()">
+    <span class="r-orig-head-t">📄 원문 전체 보기</span>
+    <button class="r-orig-btn" id="regs-orig-btn">펼치기 ▾</button>
+  </div>
+  <div class="r-orig-body" id="regs-orig-body">
+    <pre id="regs-orig-text"></pre>
+  </div>
+</div>
+`;
 
 window.toggleRegsEdit = () => {
   regsEditMode = !regsEditMode;
